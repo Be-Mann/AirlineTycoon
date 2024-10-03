@@ -194,6 +194,8 @@ jobs:
     if: github.event_name == 'push' 
 
     steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
     - name: Download artifacts
       uses: actions/download-artifact@v4
       with:
