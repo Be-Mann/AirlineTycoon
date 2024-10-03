@@ -200,11 +200,11 @@ jobs:
         pattern: ${{ needs.env.outputs.artifact-name }}*
         path: ${{ needs.env.outputs.artifact-dir }}
         merge-multiple: true
-    - name: Debug ref_type
+    - name: Get Commit Messages
+      id: commit_messages
       run: |
-        echo "ref_type ${{ github.ref_type }}"
-        echo "ref ${{ github.ref }}"
-        echo "ref_name ${{ github.ref_name }}"
+        COMMITS=$(git log -1 --pretty=format:'%h - %s (%an)')
+        echo "COMMITS=$COMMITS" >> $GITHUB_ENV
     - name: Release
       uses: softprops/action-gh-release@v1
       with:
@@ -214,3 +214,11 @@ jobs:
         prerelease: ${{ github.ref_name == 'develop' }}
         files: |
           ${{ needs.env.outputs.artifact-dir }}/${{ needs.env.outputs.artifact-name }}*
+        body: |
+          ${{ needs.env.outputs.release-tag }}
+
+          Changes in this release:
+          ${{ env.COMMITS }}
+        make_latest: true
+        append_body: true
+        generate_release_notes: true
