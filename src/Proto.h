@@ -11,6 +11,9 @@
 
 #include <SDL_messagebox.h>
 
+#include <filesystem>
+namespace fs = std::filesystem;
+
 //--------------------------------------------------------------------------------------------
 // AtNet.Cpp:
 //--------------------------------------------------------------------------------------------
@@ -85,6 +88,8 @@ int AbortMessageBox(ULONG Type, LPCTSTR Title, LPCTSTR String, ...);
 CString ConvertDate2String(UWORD Date);
 UWORD ConvertString2Date(char *String);
 void DoAppPath(void);
+fs::path BuildPathCaseInsensitive(const fs::path &PathString, const fs::path &Filename);
+fs::path FullFilesystemPath(const fs::path &Filename, const fs::path &PathString);
 CString FullFilename(const CString &Filename, const CString &PathString);
 CString FullFilename(const CString &Filename, const CString &PathString, SLONG Num);
 SLONG CalculateFlightKerosin(SLONG VonCity, SLONG NachCity, SLONG Verbrauch, SLONG Geschwindigkeit);

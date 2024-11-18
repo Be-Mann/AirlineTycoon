@@ -53,7 +53,8 @@ class /**/ SBFX {
         }
     }
     void Destroy(void);
-    void ReInit(const CString &Filename, char *Path = NULL);
+    void ReInit(const CString &Filename);
+    void ReInit(const CString &Filename, const CString &Path);
     void Play(dword dwFlags = 0) const;
     void Play(dword dwFlags, SLONG PercentVolume) const;
     void Stop(void) const;
@@ -1927,6 +1928,7 @@ class CBilanzWoche {
 };
 
 typedef struct smk_t *smk;
+class FlcWrapper;
 
 //--------------------------------------------------------------------------------------------
 // Smacker 16-Bit Interface:
@@ -1938,13 +1940,19 @@ class CSmack16 {
     char State{};
     unsigned long Width{};
     unsigned long Height{};
+    unsigned long Speed{};
     DWORD FrameNext{};
+
+    /* for FLC format */
+    FlcWrapper *pFlc{nullptr};
 
   public:
     CSmack16() = default;
     ~CSmack16();
 
     void Open(const CString &Filename);
+    BOOL NextSmk(SBBM *pTargetBm);
+    BOOL NextFlc(SBBM *pTargetBm);
     BOOL Next(SBBM *pTargetBm);
     void Close(void);
 };

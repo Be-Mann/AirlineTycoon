@@ -37,10 +37,15 @@
 #include "defines.h"
 #include "TeakLibW.h"
 
+#include <flic.h>
+
+#include <filesystem>
+
 typedef XY CRepeat;
 typedef XY CPostWait;
 
 void CalculatePalettemapper(const UBYTE *pPalette, SDL_Palette *pPaletteMapper);
+void CalculatePalettemapperFlc(const flic::Colormap &colormap, SDL_Palette *pPaletteMapper);
 
 // Werte für CSmackerClip.State:
 #define SMACKER_CLIP_INACTIVE 0
@@ -69,6 +74,32 @@ void CalculatePalettemapper(const UBYTE *pPalette, SDL_Palette *pPaletteMapper);
 #define SMACKER_CLIP_CANCANCEL 1
 #define SMACKER_CLIP_DONTCANCEL 0
 
+class FlcWrapper {
+  public:
+    FlcWrapper(std::filesystem::path fileInput);
+    ~FlcWrapper();
+
+    void info_all(unsigned long &FrameNum, unsigned long &Frames);
+    void info_video(unsigned long &Width, unsigned long &Height, unsigned long &Speed);
+    char first();
+    char next();
+    const unsigned char *get_video();
+    const flic::Colormap &get_palette();
+
+  private:
+    void init_decoder();
+    char render();
+
+    std::filesystem::path Path;
+    FILE *f{nullptr};
+    flic::StdioFileInterface FileInterface{nullptr};
+    flic::Decoder Decoder{nullptr};
+    flic::Header Header{};
+
+    std::vector<uint8_t> Buffer;
+    flic::Frame Frame;
+};
+
 // Eine Teilanimation einer Figur:
 class CSmackerClip {
   private: // Dateieigenschaften...
@@ -76,20 +107,24 @@ class CSmackerClip {
     CString SoundFilename;
     SDL_Palette *PaletteMapper; // Tabelle zum Mappen von 8 auf 16 Bit
 
-    smk pSmack;
+    smk pSmack{nullptr};
     unsigned long Width{};
     unsigned long Height{};
+    unsigned long Speed{};
     unsigned long FrameNum{};
     unsigned long Frames{};
-    DWORD FrameNext;
+    DWORD FrameNext{};
 
-    SLONG LastFrame;
+    SLONG LastFrame{};
 
     SBFX SoundFx;
     SLONG NumSoundFx{};            // Anzahl der Soundeffekte
     CUnrepeatedRandom SoundRandom; // Wenn es mehrere Soundeffekte gibt
     DWORD TickerNext{};            // Zu diesem Zeitpunkt muß das nächste Sample gestartet werden
     BOOL IsFXPlaying{};
+
+    /* for FLC format */
+    FlcWrapper *pFlc{nullptr};
 
   private: // Statische Eigenschaften...
     SLONG ClipId{};
@@ -155,6 +190,8 @@ class CSmackerPerson {
   public: // State & Initialization:
     CSmackerPerson();
     ~CSmackerPerson();
+    bool clipExists(SLONG clip) const;
+    bool isEmptyClip(SLONG clip) const;
     void ReSize(SLONG NumberOfClips);
     void SetSpeakFx(const CString &Filename);
     void SetDesiredMood(SLONG DesiredMood, SLONG AcceptedMood1 = -1, SLONG AcceptedMood2 = -1);
@@ -169,6 +206,13 @@ class CSmackerPerson {
     void NextClip(void);
 
   public: // Blitting:
+    void CopyFrameSmk();
+    void DecodeFrameSmk();
+    void CopyFrameFlc();
+    void DecodeFrameFlc();
+    void CopyFrame();
+    void DecodeFrame();
+
     void Pump(void);
     void BlitAtT(SBBM &RoomBm);
     void BlitAtT(SBBM &RoomBm, XY Offset);

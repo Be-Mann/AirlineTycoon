@@ -3003,7 +3003,7 @@ void PERSON::PersonReachedTarget() {
         // Person steht jetzt in der Warteschlange drin:
         case PERSON_2CHECKIN:
             State = PERSON_CHECKINGIN;
-            if (fpe->Gate == -1) {
+            if (!fpe || fpe->Gate == -1) {
                 State = PERSON_LEAVING;
             } else {
                 Target = Airport.GetRandomTypedRune(RUNE_CHECKIN, static_cast<UBYTE>(fpe->Gate), false, &PersonalRand);
@@ -3022,7 +3022,7 @@ void PERSON::PersonReachedTarget() {
 
             if (Clans[static_cast<SLONG>(ClanId)].HasSuitcase > 0) {
                 State = PERSON_DROPPING_SUICASE;
-                if (fpe->Gate == -1) {
+                if (!fpe || fpe->Gate == -1) {
                     State = PERSON_LEAVING;
                 } else {
                     Target = Airport.GetRandomTypedRune(RUNE_DROPSUITCASE, static_cast<UBYTE>(fpe->Gate), false, &PersonalRand);
@@ -3063,7 +3063,7 @@ void PERSON::PersonReachedTarget() {
             // Person ist am Ausgang des engen Check-In Bereichs angekommen:
         case PERSON_2CHECKIN_EXIT:
             State = PERSON_2WAITROOM | PERSON_WAITFLAG;
-            if (fpe->Gate == -1) {
+            if (!fpe || fpe->Gate == -1) {
                 State = PERSON_LEAVING;
             } else {
                 Target = Airport.GetRandomTypedRune(RUNE_2WAIT, static_cast<UBYTE>(fpe->Gate), false, &PersonalRand);
@@ -3083,7 +3083,7 @@ void PERSON::PersonReachedTarget() {
                     Sim.Players.Players[static_cast<SLONG>(FlightAirline)].Planes[FlightPlaneId].TargetX) {
                 // Sofort boarden:
                 State = bFirstClass != 0 ? PERSON_BOARDING : PERSON_2DURCHLEUCHTER;
-                if (fpe->Gate == -1) {
+                if (!fpe || fpe->Gate == -1) {
                     State = PERSON_LEAVING;
                 } else if (bFirstClass != 0) {
                     Target = Airport.GetRandomTypedRune(RUNE_WAIT, static_cast<UBYTE>(fpe->Gate), false, &PersonalRand);
@@ -3135,7 +3135,7 @@ void PERSON::PersonReachedTarget() {
                 Sim.Players.Players[static_cast<SLONG>(FlightAirline)].Planes[FlightPlaneId].AirportPos.x ==
                     Sim.Players.Players[static_cast<SLONG>(FlightAirline)].Planes[FlightPlaneId].TargetX) {
                 State = PERSON_ENTERINGPL;
-                if (fpe->Gate == -1) {
+                if (!fpe || fpe->Gate == -1) {
                     State = PERSON_LEAVING;
                 } else {
                     Target = Airport.GetRandomTypedRune(RUNE_WAITPLANE, static_cast<UBYTE>(fpe->Gate), false, &PersonalRand);

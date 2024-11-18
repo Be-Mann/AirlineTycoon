@@ -1790,6 +1790,10 @@ SLONG BLOCK::PrintList(XY ClientArea, const std::vector<std::pair<SLONG, __int64
 }
 SLONG BLOCK::PrintList(XY ClientArea, const std::vector<std::tuple<SLONG, __int64, __int64>> &list, SLONG idx) {
     for (const auto &i : list) {
+        if (std::get<0>(i) == -2) {
+            ++idx;
+            continue;
+        }
         auto div = std::get<2>(i);
         if (div == 0) {
             idx += 1 + PrintLineWithValueT(ClientArea, idx, std::get<0>(i), std::get<1>(i));
@@ -1830,7 +1834,7 @@ void BLOCK::ZeigeFinanzBericht(XY ClientArea, const PLAYER &player, const CBilan
 
         std::vector<std::tuple<SLONG, __int64, __int64>> tmp2 = {{10100, ref.GetOpGewinn(), 0},  {-1, ref.GetOpGewinn(), ref.GetHaben()},
                                                                  {10101, ref.GetOpVerlust(), 0}, {-1, ref.GetOpVerlust(), ref.GetSoll()},
-                                                                 {10102, ref.GetOpSaldo(), 0},   {-1, ref.GetOpSaldo(), ref.GetSumme()}};
+                                                                 {-2, 0LL, 0LL}, {10102, ref.GetOpSaldo(), 0}};
         PrintLineHeading(ClientArea, idx++, 10150);
         idx = PrintList(ClientArea, tmp2, idx);
     } else if (page == 1) {

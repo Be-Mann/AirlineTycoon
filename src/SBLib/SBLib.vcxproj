@@ -53,7 +53,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>$(SolutionDir)src;$(SolutionDir)src\SBLib\include;$(SolutionDir)libs\raknet\Include;$(SolutionDir)libs\enet\include;$(SolutionDir)cmake\sdl2-ttf\include;$(SolutionDir)cmake\sdl2\include;$(SolutionDir)cmake\sdl2-image\include;$(SolutionDir)cmake\sdl2-mixer\include;$(ProjectDir)libs\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)src;$(SolutionDir)src\SBLib\include;$(SolutionDir)libs\raknet\Include;$(SolutionDir)libs\enet\include;$(SolutionDir)libs\libflic\repo;$(SolutionDir)cmake\sdl2-ttf\include;$(SolutionDir)cmake\sdl2\include;$(SolutionDir)cmake\sdl2-image\include;$(SolutionDir)cmake\sdl2-mixer\include;$(ProjectDir)libs\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
