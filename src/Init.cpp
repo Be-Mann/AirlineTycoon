@@ -10,6 +10,11 @@
 #include <algorithm>
 #include <sstream>
 
+#define AT_Error(...) Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_ERROR, "Init", __VA_ARGS__)
+#define AT_Warn(...) Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_WARN, "Init", __VA_ARGS__)
+#define AT_Info(...) Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_INFO, "Init", __VA_ARGS__)
+#define AT_Log(...) AT_Log_I("Init", __VA_ARGS__)
+
 extern SLONG IconsPos[]; // Referenziert globe.cpp
 
 extern BOOL gSpawnOnly;
@@ -29,32 +34,55 @@ void InitPathVars() {
 
     CString prefix = "";
     if (gLanguage == LANGUAGE_D) {
-        prefix = "de\\";
+        prefix = "de";
     } else if (gLanguage == LANGUAGE_E) {
-        prefix = "en\\";
+        prefix = "en";
     } else if (gLanguage == LANGUAGE_F) {
-        prefix = "fr\\";
+        prefix = "fr";
     }
+    AT_Log("gLanguage = '%x', settings path prefix: '%s'", gLanguage, prefix.c_str());
 
     // fallback check
-    if (!DoesDirectoryExist(prefix)) {
+    if (!DoesDirectoryExist(FullFilename(prefix, ""))) {
         prefix.clear();
+
+        if (DoesFileExist(FullFilename("aa/100.ogg", "de/voice"))) {
+            prefix = "de";
+        } else if (DoesFileExist(FullFilename("aa/100.ogg", "en/voice"))) {
+            prefix = "en";
+        } else if (DoesFileExist(FullFilename("aa/100.ogg", "fr/voice"))) {
+            prefix = "fr";
+        }
+
+        if (prefix.empty()) {
+            AT_Warn("Prefix does not exist!");
+        } else {
+            AT_Info("Using prefix fallback: %s", prefix.c_str());
+        }
     }
 
-    ExcelPath = prefix + "data\\%s";
-    GliPath = prefix + "gli\\%s";
-    MiscPath = prefix + "misc\\%s";
-    PatchPath = "patch\\%s";
-    VoicePath = prefix + "voice\\%s";
-    SoundPath = "sound\\%s";
-    RoomPath = "room\\%s";
-    PlanePath = "planes\\%s";
-    SmackerPath = "video\\%s";
-    IntroPath = "intro\\%s";
-    MyPlanePath = "myplanes\\%s";
+    fs::path appPath{AppPath.c_str()};
+    fs::path prefixPath{prefix.c_str()};
+    AT_Log("Final path prefix: '%s'", prefixPath.c_str());
+
+    /* this should be found under 'prefix/' in some versions
+     * or directly in AppPath (in this case prefix will be empty) */
+    ExcelPath = BuildPathCaseInsensitive(prefixPath, "data");
+    GliPath = BuildPathCaseInsensitive(prefixPath, "gli");
+    MiscPath = BuildPathCaseInsensitive(prefixPath, "misc");
+    VoicePath = BuildPathCaseInsensitive(prefixPath, "voice");
+
+    /* this is always directly in AppPath */
+    IntroPath = BuildPathCaseInsensitive({}, "intro");
+    MyPlanePath = BuildPathCaseInsensitive({}, "myplanes");
+    PatchPath = BuildPathCaseInsensitive({}, "patch");
+    PlanePath = BuildPathCaseInsensitive({}, "planes");
+    RoomPath = BuildPathCaseInsensitive({}, "room");
+    SoundPath = BuildPathCaseInsensitive({}, "sound");
+    SmackerPath = BuildPathCaseInsensitive({}, "video");
 
     if (SavegamePath.GetLength() == 0) {
-        SavegamePath = "Savegame\\%s";
+        SavegamePath = BuildPathCaseInsensitive({}, "savegame");
     }
 
     // Unused:
@@ -283,13 +311,9 @@ void InitGlobeMapper() {
     SBBM TmpBm(10, 10);
 
     PALETTE EarthPal;
-#ifdef WIN32
-    EarthPal.RefreshPalFromLbm(const_cast<char *>((LPCTSTR)FullFilename("earthall.lbm", GliPath)));
-    TECBM ShadeBm(const_cast<char *>((LPCTSTR)FullFilename("shade.pcx", GliPath)), SYSRAMBM);
-#else
-    EarthPal.RefreshPalFromTga(const_cast<char *>((LPCTSTR)FullFilename("earthall.tga", GliPath)));
-    TECBM ShadeBm(const_cast<char *>((LPCTSTR)FullFilename("shade.tga", GliPath)), SYSRAMBM);
-#endif
+    EarthPal.RefreshPalFrom((LPCTSTR)FullFilename("EarthAll.lbm", GliPath), NULL, (LPCTSTR)FullFilename("EarthAll.tga", GliPath));
+
+    TECBM ShadeBm(NULL, (LPCTSTR)FullFilename("shade.pcx", GliPath), (LPCTSTR)FullFilename("shade.tga", GliPath), SYSRAMBM);
 
     GlobeMixTab.ReSize(256 * 64);
 

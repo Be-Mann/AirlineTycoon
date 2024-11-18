@@ -3,8 +3,8 @@
 This repository aims to complete the partial source code that is provided as a free bonus in the GOG release
 of Airline Tycoon Deluxe.
 
-To run it you'll need the game assets from the either the First Class, Evolution or
-Deluxe edition of the game. You can purchase these assets from GOG.com: https://www.gog.com/game/airline_tycoon_deluxe
+To run it, you'll need the game assets from the Deluxe edition of the game.
+Therefore, you need an existing installation of the game. You can purchase the game from [GOG.com](https://www.gog.com/en/game/airline_tycoon_deluxe) or from [Steam](https://store.steampowered.com/app/331920/Airline_Tycoon_Deluxe/).
 
 ## Major Additions
 
@@ -19,7 +19,15 @@ only be used for non-commercial purposes and remains property of BFG.
 
 It is therefore *not* open-source in the free software sense, for more information refer to the License.txt.
 
-## Building and running
+## Installation
+
+1. Buy and install a version of the game (for example on [GOG.com](https://www.gog.com/en/game/airline_tycoon_deluxe) or on [Steam](https://store.steampowered.com/app/331920/Airline_Tycoon_Deluxe/))
+2. Download the latest release of this mod for your platform (Windows, macOS or Linux)
+3. Unpack the archive into the folder where the old game executable is (for example At.exe on Windows)
+4. Start the game using the new game executable (AT.exe on Windows, AT on macOS and Linux)
+5. Enjoy!
+
+## Building
 
 Before building, remember to clone the submodules:
 ```
@@ -31,8 +39,8 @@ You can see the instructions to build and run the project in [BUILDING.md](BUILD
 ## Changes
 
 ### General
-* Now runnable on Linux
-* Allow the game to be ran Windowed / Borderless / Fullscreen
+* Now runnable on Linux (including support for FLC animations found in some versions)
+* Game can be configured for windowed / borderless / fullscreen display
 
 ### New computer player
 * Respects the rules of the game

@@ -65,6 +65,9 @@
 #include "sentry.h"
 #endif
 
+#define AT_Error(...) Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_ERROR, "Takeoff", __VA_ARGS__)
+#define AT_Warn(...) Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_WARN, "Takeoff", __VA_ARGS__)
+#define AT_Info(...) Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_INFO, "Takeoff", __VA_ARGS__)
 #define AT_Log(...) AT_Log_I("Takeoff", __VA_ARGS__)
 
 class TeakLibException;
@@ -143,7 +146,7 @@ extern "C"
                                                     "Abort to not send the crash to sentry\n\nCustom Crash ID is: ") +
                                         id;
                 AT_Log_I("CRASH", msg);
-                std::filesystem::copy_file("debug.txt", "crash-" + id + ".txt");
+                fs::copy_file("debug.txt", "crash-" + id + ".txt");
                 if (AbortMessageBox(MESSAGEBOX_ERROR, "Airline Tycoon Deluxe Crash Handler", msg.c_str(), nullptr)) {
                     return sentry_value_new_null(); // Skip
                 }
@@ -245,9 +248,16 @@ void CTakeOffApp::CLI(int argc, char *argv[]) {
             return;
         }
 
-        if (stricmp (Argument, "/e")==0) gLanguage = LANGUAGE_E;
-        if (stricmp (Argument, "/d")==0) gLanguage = LANGUAGE_D;
-        if (stricmp (Argument, "/f")==0) gLanguage = LANGUAGE_F;
+        if (stricmp(Argument, "/e") == 0) {
+            gLanguage = LANGUAGE_E;
+        }
+        if (stricmp(Argument, "/d") == 0) {
+            gLanguage = LANGUAGE_D;
+        }
+        if (stricmp(Argument, "/f") == 0) {
+            gLanguage = LANGUAGE_F;
+        }
+		
         // if (stricmp (Argument, "/test")==0) bTest = TRUE;
 
         if (stricmp(Argument, "/window") == 0) {
@@ -385,11 +395,15 @@ void CTakeOffApp::ReadOptions(int argc, char *argv[]) {
     // #define LANGUAGE_9      18             //U-noch frei
     // #define LANGUAGE_10     19             //V-noch frei
 
-    gLanguage = LANGUAGE_D;
-    std::ifstream ifil = std::ifstream(AppPath + "misc/sabbel.dat");
+    gLanguage = LANGUAGE_E;
+    CString sabbelPath{FullFilename("sabbel.dat", "misc")};
+    std::ifstream ifil = std::ifstream(sabbelPath);
     if (ifil.is_open()) {
-        ifil.read(reinterpret_cast<char *>(&gLanguage), sizeof(gLanguage));
+        AT_Log("Found sabbel.dat at %s", sabbelPath.c_str());
+        ifil.read(reinterpret_cast<char *>(&gLanguage), 1);
         ifil.close();
+    } else {
+        AT_Log("No sabbel.dat found at %s", sabbelPath.c_str());
     }
 
     // gUpdatingPools = TRUE; //Zum testen; für Release auskommentieren
@@ -508,17 +522,15 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
         SBBM TitleBitmap;
 
         try {
-            pGfxMain->LoadLib(const_cast<char *>((LPCTSTR)FullFilename("titel.gli", RoomPath)), &pRoomLib, L_LOCMEM);
+            pGfxMain->LoadLib((LPCTSTR)FullFilename("titel.gli", RoomPath), &pRoomLib, L_LOCMEM);
         } catch (TeakLibException &e) {
             AT_Log_I("Takeoff", "Did not find titel.gli, trying to continue", e.what());
             e.caught();
         }
 
-        try {
-            pGfxMain->LoadLib(const_cast<char *>((LPCTSTR)FullFilename("titel2.gli", RoomPath)), &pRoomLib2, L_LOCMEM);
-        } catch (TeakLibException &e) {
-            AT_Log_I("Takeoff", "Did not find titel2.gli, trying to continue", e.what());
-            e.caught();
+        CString path{FullFilename("titel2.gli", RoomPath)};
+        if (DoesFileExist((LPCTSTR)path)) {
+            pGfxMain->LoadLib((LPCTSTR)path, &pRoomLib2, L_LOCMEM);
         }
 
         if (Sim.Options.OptionDigiSound == TRUE) {
@@ -581,13 +593,13 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
         pGfxMain->LoadLib(const_cast<char *>((LPCTSTR)FullFilename("glberatr.gli", GliPath)), &pGLibBerater, L_LOCMEM);
 
         if (gLanguage == LANGUAGE_D)
-            LOADING_TEXT("Laden von verschiedenen Grafix...")
+            LOADING_TEXT("Laden von verschiedenen Grafiken...")
         else if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Verscheidene afbeeldingen worden opgestart...")
         else if (gLanguage == LANGUAGE_F)
             LOADING_TEXT("Chargement des graphismes...")
         else
-            LOADING_TEXT("Loading miscellanous grafix...");
+            LOADING_TEXT("Loading miscellaneous graphics...");
 
         pGfxMain->LoadLib(const_cast<char *>((LPCTSTR)FullFilename("glstd.gli", GliPath)), &pGLibStd, L_LOCMEM);
 
@@ -634,7 +646,7 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
         StandardTexte.SetOverrideFile(FullFilename("std_ger.patched.res", PatchPath));
 
         if (gLanguage == LANGUAGE_D)
-            LOADING_TEXT("Texte der Einheit laden...")
+            LOADING_TEXT("Texte der Ma\xDF\x65inheiten laden...")
         else if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Eenheidteksten worden opgestart...")
         else if (gLanguage == LANGUAGE_F)
@@ -704,7 +716,7 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
         }
 
         if (gLanguage == LANGUAGE_D)
-            LOADING_TEXT("Suche nach Midi-Gerät...")
+            LOADING_TEXT("Suche nach Midi-Ger\xE4t...")
         else if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Zoekt midi-apparaat...")
         else if (gLanguage == LANGUAGE_F)
@@ -718,11 +730,11 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
         bMidiAvailable = IsMidiAvailable();
 
         if (gLanguage == LANGUAGE_D)
-            LOADING_TEXT("Initialisierung des Musik-Sound-Systems...")
+            LOADING_TEXT("Initialisierung des Soundsystems...")
         else if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Initialiseert geluidssysteem...")
         else if (gLanguage == LANGUAGE_F)
-            LOADING_TEXT("Chargement des systèmes de son...")
+            LOADING_TEXT("Chargement des syst\xE8mes de son...")
         else
             LOADING_TEXT("Initializing music sound system...");
 
@@ -733,7 +745,7 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
 
             if (gpMidi != nullptr) {
                 if (gLanguage == LANGUAGE_D)
-                    LOADING_TEXT("Midi-Lautstärke einstellen...")
+                    LOADING_TEXT("Midi-Lautst\xE4rke einstellen...")
                 else if (gLanguage == LANGUAGE_N)
                     LOADING_TEXT("Stelt het midi-volume in...")
                 else if (gLanguage == LANGUAGE_F)
@@ -761,7 +773,7 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
                     NextMidi();
 
                     if (gLanguage == LANGUAGE_D)
-                        LOADING_TEXT("Midi-Lautstärke zurücksetzen...")
+                        LOADING_TEXT("Midi-Lautst\xE4rke zur\xFC\x63ksetzen...")
                     else if (gLanguage == LANGUAGE_N)
                         LOADING_TEXT("Herstelt het midi-volume...")
                     else if (gLanguage == LANGUAGE_F)
@@ -871,7 +883,7 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
         Clans.LoadBitmaps();
 
         if (gLanguage == LANGUAGE_D)
-            LOADING_TEXT("Initialisierung der Städte...")
+            LOADING_TEXT("Initialisierung der St\xE4\x64te...")
         else if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Initialiseert de steden...")
         else if (gLanguage == LANGUAGE_F)
@@ -899,7 +911,7 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
         else if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Initialiseert de namen...")
         else if (gLanguage == LANGUAGE_F)
-            LOADING_TEXT("Creation des noms d'avion...")
+            LOADING_TEXT("Creation des noms d\x92\x61vion...")
         else
             LOADING_TEXT("Initializing names...");
         PlaneNames.ReInit("pnames.csv");

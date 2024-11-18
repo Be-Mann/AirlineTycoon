@@ -1621,7 +1621,7 @@ void GameFrame::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
             if ((qPlayer.LocationWin)->CalculatorIsOpen != 0) {
                 SBFX *pTargetFx = new SBFX;
 
-                SynthesizeNumber(pTargetFx, bprintf("p%li\\", Sim.localPlayer + 1), (qPlayer.LocationWin)->CalculatorValue, rand() % 2);
+                SynthesizeNumber(pTargetFx, bprintf("p%li/", Sim.localPlayer + 1), (qPlayer.LocationWin)->CalculatorValue, rand() % 2);
 
                 pTargetFx->Play(0, Sim.Options.OptionEffekte * 100 / 7);
             }

@@ -768,6 +768,7 @@ class PALETTE {
     void BlendOut(void) const;
     void RefreshDD(SLONG) const;
     void RefreshDD(SLONG, SLONG) const;
+    void RefreshPalFrom(const char *lbm, const char *pcx, const char *tga);
     void RefreshPalFromLbm(CString const &);
     void RefreshPalFromPcx(CString const &);
     void RefreshPalFromTga(CString const &);
@@ -835,6 +836,7 @@ class TECBM {
   public:
     TECBM(void);
     TECBM(CString const &, void *);
+    TECBM(const char *lbm, const char *pcx, const char *tga, void *flags);
     TECBM(CString const &, SLONG, void *);
     TECBM(SLONG, SLONG, void *);
     TECBM(TXY<SLONG>, void *);
@@ -849,6 +851,7 @@ class TECBM {
     static SLONG IsHardwareCritical(void);
     static SLONG IsEitherCritical(void);
     static void SetCriticalMem(SLONG);
+    void ReSize(const char *lbm, const char *pcx, const char *tga, void *flags);
     void ReSize(CString const &, void *);
     void ReSize(CString const &, SLONG, void *);
     void ReSizeLbm(CString const &, void *);

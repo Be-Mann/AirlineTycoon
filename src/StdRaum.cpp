@@ -490,6 +490,10 @@ void CStdRaum::ProcessEvent(const SDL_Event &event, const CPoint &position) {
         // OnChar(upper ? toupper(test) : event.key.keysym.sym,
         //   event.key.repeat, nFlags);
     } break;
+    case SDL_KEYUP: {
+        UINT nFlags = event.key.keysym.scancode | ((SDL_GetModState() & KMOD_LALT) << 5);
+        OnKeyUp(KeycodeToUpper(event.key.keysym.sym), event.key.repeat, nFlags);
+    } break;
     case SDL_MOUSEBUTTONDOWN: {
         if (event.button.button == SDL_BUTTON_LEFT) {
             if (event.button.clicks == 2) {
@@ -4077,8 +4081,15 @@ void CStdRaum::MenuStart(SLONG MenuType, SLONG MenuPar1, SLONG MenuPar2, SLONG M
         break;
 
     case MENU_CALLITADAY:
-        pGfxMain->LoadLib(const_cast<char *>((LPCTSTR)FullFilename("network3.gli", GliPath)), &pMenuLib1, L_LOCMEM);
-        MenuBms.ReSize(pMenuLib1, "MENU PL0 PL1 PL2 PL3 PL4 PL5 PL6 PL7");
+        try {
+            pGfxMain->LoadLib(const_cast<char *>((LPCTSTR)FullFilename("network3.gli", GliPath)), &pMenuLib1, L_LOCMEM);
+            MenuBms.ReSize(pMenuLib1, "MENU PL0 PL1 PL2 PL3 PL4 PL5 PL6 PL7");
+        } catch (TeakLibException &e) {
+            AT_Log_I("StdRaum", "Did not find network3.gli, trying to continue", e.what());
+            e.caught();
+            pMenuLib1 = nullptr;
+        }
+
         OnscreenBitmap.ReSize(MenuBms[0].Size);
         break;
 
@@ -5396,12 +5407,14 @@ void CStdRaum::MenuRepaint() {
     } break;
 
     case MENU_CALLITADAY:
-        OnscreenBitmap.BlitFrom(MenuBms[0]);
-        for (c = 0; c < 4; c++) {
-            if (Sim.Players.Players[c].IsOut == 0 && (Sim.Players.Players[c].Owner == 0 || Sim.Players.Players[c].Owner == 2)) {
-                SLONG add = Sim.Players.Players[c].CallItADay;
+        if (pMenuLib1) {
+            OnscreenBitmap.BlitFrom(MenuBms[0]);
+            for (c = 0; c < 4; c++) {
+                if (Sim.Players.Players[c].IsOut == 0 && (Sim.Players.Players[c].Owner == 0 || Sim.Players.Players[c].Owner == 2)) {
+                    SLONG add = Sim.Players.Players[c].CallItADay;
 
-                OnscreenBitmap.BlitFrom(MenuBms[1 + c + 4 - 4 * add], 30 - 14 + c * 48, 76);
+                    OnscreenBitmap.BlitFrom(MenuBms[1 + c + 4 - 4 * add], 30 - 14 + c * 48, 76);
+                }
             }
         }
         break;

@@ -182,6 +182,7 @@ target_link_libraries(AT PRIVATE
     SSE
     SBLib
     libsmacker
+    flic-lib
     enet
     jansson
     SDL2::SDL2_ttf

@@ -153,7 +153,7 @@ BOOL CreateSpeechSBFX(const CString &String, SBFX *pFx, SLONG PlayerNum, BOOL *b
         suffix = ".raw";
     }
 
-    char sep = std::filesystem::path::preferred_separator;
+    char sep = fs::path::preferred_separator;
     CString TextFollows;
     BUFFER_V<SBFX *> Effects(50);
     SLONG c = 0;
@@ -191,7 +191,7 @@ BOOL CreateSpeechSBFX(const CString &String, SBFX *pFx, SLONG PlayerNum, BOOL *b
             for (c = 0; c < 4; c++) {
                 if (strnicmp(TextFollows, Sim.Players.Players[c].AirlineX, Sim.Players.Players[c].AirlineX.GetLength()) == 0) {
                     str = path + sep + "name" + bitoa(c + 1);
-                    Effects[m++]->ReInit(str.ToLower() + suffix, const_cast<char *>((LPCTSTR)VoicePath));
+                    Effects[m++]->ReInit(str.ToLower() + suffix, VoicePath);
 
                     CString tmp = CString(":") + bprintf("%06i", AtGetTime() - SoundLogFileStartTime) + " playing " + str + suffix + "\xd\xa";
                     if (pSoundLogFile != nullptr) {
@@ -205,7 +205,7 @@ BOOL CreateSpeechSBFX(const CString &String, SBFX *pFx, SLONG PlayerNum, BOOL *b
                 for (c = 0; c < Cities.AnzEntries(); c++) {
                     if (strnicmp(TextFollows, Cities[c].Name, Cities[c].Name.GetLength()) == 0) {
                         str = path + sep + Cities[c].KuerzelReal;
-                        Effects[m++]->ReInit(str.ToLower() + suffix, const_cast<char *>((LPCTSTR)VoicePath));
+                        Effects[m++]->ReInit(str.ToLower() + suffix, VoicePath);
 
                         CString tmp = CString(":") + bprintf("%06i", AtGetTime() - SoundLogFileStartTime) + " playing " + str + suffix + "\xd\xa";
                         if (pSoundLogFile != nullptr) {
@@ -221,7 +221,7 @@ BOOL CreateSpeechSBFX(const CString &String, SBFX *pFx, SLONG PlayerNum, BOOL *b
                     if (PlaneTypes.IsInAlbum(c) != 0) {
                         if (strnicmp(TextFollows, PlaneTypes[c].Name, PlaneTypes[c].Name.GetLength()) == 0) {
                             str = path + sep + bprintf("pl%lib", PlaneTypes.GetIdFromIndex(c) - 0x10000000);
-                            Effects[m++]->ReInit(str.ToLower() + suffix, const_cast<char *>((LPCTSTR)VoicePath));
+                            Effects[m++]->ReInit(str.ToLower() + suffix, VoicePath);
 
                             CString tmp = CString(":") + bprintf("%06i", AtGetTime() - SoundLogFileStartTime) + " playing " + str + suffix + "\xd\xa";
                             if (pSoundLogFile != nullptr) {
@@ -231,7 +231,7 @@ BOOL CreateSpeechSBFX(const CString &String, SBFX *pFx, SLONG PlayerNum, BOOL *b
                         }
                         if (strnicmp(TextFollows, PlaneTypes[c].Hersteller, PlaneTypes[c].Hersteller.GetLength()) == 0) {
                             str = path + sep + bprintf("pl%lih", PlaneTypes.GetIdFromIndex(c) - 0x10000000);
-                            Effects[m++]->ReInit(str.ToLower() + suffix, const_cast<char *>((LPCTSTR)VoicePath));
+                            Effects[m++]->ReInit(str.ToLower() + suffix, VoicePath);
 
                             CString tmp = CString(":") + bprintf("%06i", AtGetTime() - SoundLogFileStartTime) + " playing " + str + suffix + "\xd\xa";
                             if (pSoundLogFile != nullptr) {
@@ -301,7 +301,7 @@ BOOL CreateSpeechSBFX(const CString &String, SBFX *pFx, SLONG PlayerNum, BOOL *b
 
                 if (path.GetLength() != str.GetLength() - 1) {
                     str.Replace('\\', sep);
-                    Effects[m++]->ReInit(str.ToLower() + suffix, const_cast<char *>((LPCTSTR)VoicePath));
+                    Effects[m++]->ReInit(str.ToLower() + suffix, VoicePath);
 
                     CString tmp = CString(":") + bprintf("%06i", AtGetTime() - SoundLogFileStartTime) + " playing " + str + suffix + "\xd\xa";
                     if (pSoundLogFile != nullptr) {
@@ -309,7 +309,7 @@ BOOL CreateSpeechSBFX(const CString &String, SBFX *pFx, SLONG PlayerNum, BOOL *b
                     }
                 }
             } else {
-                Effects[m++]->ReInit(str.ToLower() + suffix, const_cast<char *>((LPCTSTR)VoicePath));
+                Effects[m++]->ReInit(str.ToLower() + suffix, VoicePath);
 
                 CString tmp = CString(":") + bprintf("%06i", AtGetTime() - SoundLogFileStartTime) + " playing " + str + suffix + "\xd\xa";
                 if (pSoundLogFile != nullptr) {
@@ -581,7 +581,7 @@ void PlayMidi(const CString &Filename) {
         }
 
         gpMidi->Stop();
-        gpMidi->Load(FullFilename(Filename, SoundPath));
+        gpMidi->Load(Filename);
         gpMidi->Play();
 
         SSE::SetMusicCallback(NextMidi);
@@ -715,22 +715,16 @@ void SBFX::Tokenize(BUFFER_V<SLONG> &Von, BUFFER_V<SLONG> &Bis) const {
     Bis.ReSize(Anzahl);
 }
 
-void SBFX::ReInit(const CString &Filename, char *Path) {
-    CString localPath;
+void SBFX::ReInit(const CString &Filename) { ReInit(Filename, SoundPath); }
 
+void SBFX::ReInit(const CString &Filename, const CString &Path) {
     Destroy();
-
-    if (Path == nullptr) {
-        localPath = SoundPath;
-    } else {
-        localPath = Path;
-    }
 
     if (gpSSE != nullptr) {
         gpSSE->CreateFX(&pFX);
-        pFX->Load(const_cast<char *>((LPCTSTR)FullFilename(Filename, localPath)));
+        pFX->Load((LPCTSTR)FullFilename(Filename, Path));
 
-        SBFX::Filename = FullFilename(Filename, localPath);
+        SBFX::Filename = FullFilename(Filename, Path);
     }
 }
 

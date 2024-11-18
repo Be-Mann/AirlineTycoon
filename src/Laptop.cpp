@@ -127,11 +127,7 @@ CLaptop::CLaptop(BOOL bHandy, ULONG PlayerNum) : CPlaner(bHandy, PlayerNum, Sim.
         SP_Buttons[5].Clips[0].ReSize(0, "ok.smk", "", XY(545, 359), SPM_IDLE, CRepeat(1, 1), CPostWait(30, 30), SMACKER_CLIP_CANCANCEL, nullptr,
                                       SMACKER_CLIP_SET, 0, nullptr, "A1", 0);
 
-#ifdef WIN32
-        EarthBm.ReSize(const_cast<char *>((LPCTSTR)FullFilename("earthvir.lbm", GliPath)), SYSRAMBM);
-#else
-        EarthBm.ReSize(const_cast<char *>((LPCTSTR)FullFilename("earthvir.tga", GliPath)), SYSRAMBM);
-#endif
+        EarthBm.ReSize((LPCTSTR)FullFilename("earthvir.lbm", GliPath), NULL, (LPCTSTR)FullFilename("earthvir.tga", GliPath), NULL);
 
         for (c = qPlayer.Blocks.AnzEntries() - 1; c >= 1; c--) {
             if (qPlayer.Blocks.IsInAlbum(c) != 0) {
@@ -144,11 +140,9 @@ CLaptop::CLaptop(BOOL bHandy, ULONG PlayerNum) : CPlaner(bHandy, PlayerNum, Sim.
             qPlayer.DisplayPlanes[c] = 0U;
         }
     } else {
-#ifdef WIN32
-        EarthBm.ReSize(const_cast<char *>((LPCTSTR)FullFilename("earthlap.lbm", GliPath)), SYSRAMBM);
-#else
-        EarthBm.ReSize(const_cast<char *>((LPCTSTR)FullFilename("earthlap.tga", GliPath)), SYSRAMBM);
-#endif
+
+        EarthBm.ReSize((LPCTSTR)FullFilename("earthlap.lbm", GliPath), NULL, (LPCTSTR)FullFilename("earthlap.tga", GliPath), NULL);
+
         for (c = qPlayer.Blocks.AnzEntries() - 1; c >= 1; c--) {
             if (qPlayer.Blocks.IsInAlbum(c) != 0 && qPlayer.Blocks[c].Destructing != 0) {
                 qPlayer.Blocks -= c;

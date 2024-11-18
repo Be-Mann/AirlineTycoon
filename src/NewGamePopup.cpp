@@ -507,8 +507,7 @@ void NewGamePopup::RefreshKlackerField() {
         }
 
         KlackerTafel.PrintAt(0, 6, StandardTexte.GetS(TOKEN_NEWGAME, 4001)); // Zurück
-    } else if (PageNum == PAGE_TYPE::SELECT_PLAYER_SINGLEPLAYER || PageNum == PAGE_TYPE::SELECT_PLAYER_CAMPAIGN ||
-               PageNum == PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER) // Spieler wählen
+    } else if (isPlayerSelect(PageNum))                                      // Spieler wählen
     {
         if (PageNum == PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER && (pNetworkPlayers != nullptr)) // Auf Mitspieler warten
         {
@@ -560,8 +559,7 @@ void NewGamePopup::RefreshKlackerField() {
             }
 
             if (c == 4) {
-                SLONG id = (PageNum == PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER) ? 4000 : 4002;
-                KlackerTafel.PrintAt(24 - strlen(StandardTexte.GetS(TOKEN_NEWGAME, id)), 15, StandardTexte.GetS(TOKEN_NEWGAME, id)); // Start
+                KlackerTafel.PrintAt(24 - strlen(StandardTexte.GetS(TOKEN_NEWGAME, 4002)), 15, StandardTexte.GetS(TOKEN_NEWGAME, 4002)); // Weiter
             }
         }
 
@@ -577,10 +575,11 @@ void NewGamePopup::RefreshKlackerField() {
             KlackerTafel.PrintAt(6, c * 2 + 3, (LPCTSTR)Sim.Players.Players[c].Airline);
             KlackerTafel.PrintAt(3, c * 2 + 3, (LPCTSTR)Sim.Players.Players[c].Abk);
         }
-    } else if (PageNum == PAGE_TYPE::SELECT_BOT_SINGLEPLAYER || PageNum == PAGE_TYPE::SELECT_BOT_CAMPAIGN) {
-        KlackerTafel.PrintAt(0, 15, StandardTexte.GetS(TOKEN_NEWGAME, 4001)); // Zurück
-
-        KlackerTafel.PrintAt(24 - strlen(StandardTexte.GetS(TOKEN_NEWGAME, 4000)), 15, StandardTexte.GetS(TOKEN_NEWGAME, 4000)); // Start
+    } else if (isBotSelect(PageNum)) {
+        if ((PageNum != PAGE_TYPE::SELECT_BOT_NETWORK) || bThisIsSessionMaster) {
+            KlackerTafel.PrintAt(0, 15, StandardTexte.GetS(TOKEN_NEWGAME, 4001));                                                    // Zurück
+            KlackerTafel.PrintAt(24 - strlen(StandardTexte.GetS(TOKEN_NEWGAME, 4000)), 15, StandardTexte.GetS(TOKEN_NEWGAME, 4000)); // Start
+        }
 
         KlackerTafel.PrintAt(0, 0, StandardTexte.GetS(TOKEN_NEWGAME, 5005)); // Headline
 
@@ -851,7 +850,7 @@ void NewGamePopup::OnPaint() {
                             RoomBm.BlitFrom(KlackerTafel.KlackerBms[static_cast<SLONG>(KlackerTafel.Haben[x + y * 24])], x * 16 + 128, py);
                         }
                     }
-                } else if (!isPlayerSelect(PageNum)) {
+                } else if (!isPlayerOrBotSelect(PageNum)) {
                     if (KlackerTafel.Haben[x + y * 24] > 0) {
                         if (KlackerTafel.LineDisabled[y]) {
                             RoomBm.BlitFrom(KlackerTafel.KlackerBms[static_cast<SLONG>(KlackerTafel.Haben[x + y * 24]) + (73 + 8 + 3 + 3)], x * 16 + 128, py);
@@ -860,7 +859,7 @@ void NewGamePopup::OnPaint() {
                         }
                     }
                 } else if (x > 5 || y < 2 || ((y - 2) % 2) != 0) {
-                    UBYTE greyCond = (PageNum == PAGE_TYPE::SELECT_BOT_SINGLEPLAYER || PageNum == PAGE_TYPE::SELECT_BOT_CAMPAIGN) ? 1U : 0U;
+                    UBYTE greyCond = isBotSelect(PageNum) ? 1U : 0U;
                     if (KlackerTafel.Haben[x + y * 24] != 0) {
                         if (y < 2 || (y >= 2 && (y - 2) / 2 <= 3 && (Sim.Players.Players[(y - 2) / 2].Owner == greyCond))) {
                             RoomBm.BlitFrom(KlackerTafel.KlackerBms[static_cast<SLONG>(KlackerTafel.Haben[x + y * 24])], x * 16 + 128, py);
@@ -871,7 +870,7 @@ void NewGamePopup::OnPaint() {
                 }
             }
 
-            if (isPlayerSelect(PageNum) && y == 10) {
+            if (isPlayerOrBotSelect(PageNum) && y == 10) {
                 break;
             }
 
@@ -880,21 +879,19 @@ void NewGamePopup::OnPaint() {
                     RoomBm.BlitFrom(KlackerTafel.KlackerBms[0L], 128 + x * 16, py * 22);
                 }
 
-                if (isPlayerSelect(PageNum)) {
+                if (isPlayerOrBotSelect(PageNum)) {
                     py += 22;
                 }
             }
         }
 
-        if (isPlayerSelect(PageNum)) {
+        if (isPlayerOrBotSelect(PageNum)) {
             for (x = 0; x < 24; x++) {
                 if (KlackerTafel.Haben[x + 15 * 24] != 0) {
                     RoomBm.BlitFrom(KlackerTafel.KlackerBms[static_cast<SLONG>(KlackerTafel.Haben[x + 15 * 24])], x * 16 + 128, 63 + 15 * 22);
                 }
             }
-        }
 
-        if (isPlayerSelect(PageNum)) {
             // Logo-Felder drüber blitten:
             for (y = 0; y < 4; y++) {
                 if (KlackerTafel.Haben[3 + (y * 2 + 2) * 24] < SmallLogoBms.AnzEntries()) {
@@ -916,7 +913,7 @@ void NewGamePopup::OnPaint() {
                         o = 1;
                     }
                 }
-                if (PageNum == PAGE_TYPE::SELECT_BOT_SINGLEPLAYER || PageNum == PAGE_TYPE::SELECT_BOT_CAMPAIGN) {
+                if (isBotSelect(PageNum)) {
                     o = 1 - o;
                 }
                 if (y + o * 4 < PlayerBms.AnzEntries()) {
@@ -932,7 +929,9 @@ void NewGamePopup::OnPaint() {
             if (CursorY != -1) {
                 RoomBm.BlitFromT(KlackerTafel.Cursors[BlinkState % 8], (CursorX + 6) * 16 + 128, (CursorY + 2) * 22 + (CursorY / 2 + 1) * 22 + 63);
             }
-        } else if (PageNum == PAGE_TYPE::MULTIPLAYER_CREATE_SESSION) {
+        }
+
+        if (PageNum == PAGE_TYPE::MULTIPLAYER_CREATE_SESSION) {
             RoomBm.BlitFromT(KlackerTafel.Cursors[BlinkState % 8], (CursorX) * 16 + 128, 2 * 22 + 63);
         }
 
@@ -992,21 +991,24 @@ void NewGamePopup::OnPaint() {
                     SetMouseLook(CURSOR_EXIT, 0, ROOM_TITLE, 999);
                 }
             } else if (PageNum == PAGE_TYPE::MISSION_SELECT || PageNum == PAGE_TYPE::ADDON_MISSION_SELECT ||
-                       PageNum == PAGE_TYPE::FLIGHT_SECURITY_MISSION_SELECT || isPlayerSelect(PageNum)) {
+                       PageNum == PAGE_TYPE::FLIGHT_SECURITY_MISSION_SELECT || isPlayerOrBotSelect(PageNum)) {
                 //"Abbrechen"
                 if (Line == 15 && Column >= 0 && Column <= 10) {
                     if ((PageNum >= PAGE_TYPE::MAIN_MENU && PageNum <= PAGE_TYPE::SELECT_PLAYER_SINGLEPLAYER) || PageNum == PAGE_TYPE::ADDON_MISSION_SELECT ||
-                        PageNum == PAGE_TYPE::FLIGHT_SECURITY_MISSION_SELECT || PageNum == PAGE_TYPE::SELECT_PLAYER_CAMPAIGN ||
-                        PageNum == PAGE_TYPE::SELECT_BOT_SINGLEPLAYER || PageNum == PAGE_TYPE::SELECT_BOT_CAMPAIGN) {
-                        SetMouseLook(CURSOR_HOT, 0, -100, 0);
+                        PageNum == PAGE_TYPE::FLIGHT_SECURITY_MISSION_SELECT || PageNum == PAGE_TYPE::SELECT_PLAYER_CAMPAIGN || isBotSelect(PageNum)) {
+
+                        if ((PageNum != PAGE_TYPE::SELECT_BOT_NETWORK) || bThisIsSessionMaster) {
+                            SetMouseLook(CURSOR_HOT, 0, -100, 0);
+                        }
                     }
                 }
                 //"Los!"
                 if (Line == 15 && Column >= 14 && Column < 24) {
                     if (PageNum == PAGE_TYPE::ADDON_MISSION_SELECT || PageNum == PAGE_TYPE::FLIGHT_SECURITY_MISSION_SELECT ||
                         PageNum == PAGE_TYPE::SELECT_PLAYER_CAMPAIGN || PageNum == PAGE_TYPE::MISSION_SELECT ||
-                        (PageNum == PAGE_TYPE::SELECT_PLAYER_SINGLEPLAYER && (NamesOK != 0)) || PageNum == PAGE_TYPE::SELECT_BOT_SINGLEPLAYER ||
-                        PageNum == PAGE_TYPE::SELECT_BOT_CAMPAIGN) {
+                        (PageNum == PAGE_TYPE::SELECT_PLAYER_SINGLEPLAYER && (NamesOK != 0))) {
+                        SetMouseLook(CURSOR_HOT, 0, -100, 0);
+                    } else if (isBotSelect(PageNum) && ((PageNum != PAGE_TYPE::SELECT_BOT_NETWORK) || bThisIsSessionMaster)) {
                         SetMouseLook(CURSOR_HOT, 0, -100, 0);
                     }
                 } else if (PageNum == PAGE_TYPE::MISSION_SELECT && Line >= 2 && Line <= 2 + Sim.MaxDifficulty) {
@@ -1017,7 +1019,7 @@ void NewGamePopup::OnPaint() {
                     SetMouseLook(CURSOR_HOT, 0, -100, 0);
                 }
 
-                if (isPlayerSelect(PageNum)) {
+                if (isPlayerOrBotSelect(PageNum) && ((PageNum != PAGE_TYPE::SELECT_BOT_NETWORK) || bThisIsSessionMaster)) {
                     for (SLONG c = 0; c < 4; c++) {
                         // Check for click at names:
                         if (gMousePosition.x >= 175 + 48 && gMousePosition.y >= c * 22 * 3 + 129 && gMousePosition.y <= c * 22 * 3 + 129 + 22) {
@@ -1134,6 +1136,7 @@ void NewGamePopup::OnPaint() {
                     }
                 }
             }
+
             if (PageNum == PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER) // Netzwerk: Auf Mitspieler warten
             {
                 if (GridPos.IfIsWithin(1, 15, 7, 15)) {
@@ -1378,7 +1381,7 @@ void NewGamePopup::OnLButtonDown(UINT nFlags, CPoint point) {
                 RefreshKlackerField();
             }
         } else if (PageNum == PAGE_TYPE::MISSION_SELECT || PageNum == PAGE_TYPE::ADDON_MISSION_SELECT || PageNum == PAGE_TYPE::FLIGHT_SECURITY_MISSION_SELECT ||
-                   isPlayerSelect(PageNum)) {
+                   isPlayerOrBotSelect(PageNum)) {
             //"Abbrechen"
             if (Line == 15 && Column >= 0 && Column <= 10) {
                 if (PageNum == PAGE_TYPE::MAIN_MENU) {
@@ -1413,8 +1416,20 @@ void NewGamePopup::OnLButtonDown(UINT nFlags, CPoint point) {
                     RefreshKlackerField();
                     return;
                 }
-                if (PageNum == PAGE_TYPE::SELECT_BOT_SINGLEPLAYER || PageNum == PAGE_TYPE::SELECT_BOT_CAMPAIGN) {
+                if (PageNum == PAGE_TYPE::SELECT_BOT_SINGLEPLAYER) {
                     PageNum = PAGE_TYPE::SELECT_PLAYER_SINGLEPLAYER;
+                    CursorX = CursorY = -1;
+                    RefreshKlackerField();
+                    return;
+                }
+                if (PageNum == PAGE_TYPE::SELECT_BOT_CAMPAIGN) {
+                    PageNum = PAGE_TYPE::SELECT_PLAYER_CAMPAIGN;
+                    CursorX = CursorY = -1;
+                    RefreshKlackerField();
+                    return;
+                }
+                if (PageNum == PAGE_TYPE::SELECT_BOT_NETWORK && bThisIsSessionMaster) {
+                    PageNum = PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER;
                     CursorX = CursorY = -1;
                     RefreshKlackerField();
                     return;
@@ -1443,18 +1458,24 @@ void NewGamePopup::OnLButtonDown(UINT nFlags, CPoint point) {
                     RefreshKlackerField();
                     return;
                 }
-
                 if (PageNum == PAGE_TYPE::SELECT_PLAYER_CAMPAIGN) {
                     PageNum = PAGE_TYPE::SELECT_BOT_CAMPAIGN;
                     CursorX = CursorY = -1;
                     RefreshKlackerField();
                     return;
                 }
+                if (PageNum == PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER && bThisIsSessionMaster) {
+                    PageNum = PAGE_TYPE::SELECT_BOT_NETWORK;
+                    CursorX = CursorY = -1;
+                    RefreshKlackerField();
 
-                if ((PageNum == PAGE_TYPE::SELECT_BOT_SINGLEPLAYER || PageNum == PAGE_TYPE::SELECT_BOT_CAMPAIGN ||
-                     PageNum == PAGE_TYPE::SELECT_PLAYER_CAMPAIGN || PageNum == PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER) &&
-                    (NamesOK != 0) && (PageNum != PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER || bThisIsSessionMaster)) {
-                    if (PageNum == PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER) {
+                    SIM::SendSimpleMessage(ATNET_BOTSELECT, 0, -1, 0);
+
+                    return;
+                }
+
+                if (isBotSelect(PageNum) && (NamesOK != 0) && (PageNum != PAGE_TYPE::SELECT_BOT_NETWORK || bThisIsSessionMaster)) {
+                    if (PageNum == PAGE_TYPE::SELECT_BOT_NETWORK) {
                         SLONG c = 0;
 
                         if (!((NamesOK != 0) && bThisIsSessionMaster && (pNetworkPlayers != nullptr) && pNetworkPlayers->GetNumberOfElements() > 1)) {
@@ -1465,8 +1486,8 @@ void NewGamePopup::OnLButtonDown(UINT nFlags, CPoint point) {
                             return;
                         }
 
-                        if (PageNum == PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER && ((UnselectedNetworkIDs[0] != 0U) || (UnselectedNetworkIDs[1] != 0U) ||
-                                                                                (UnselectedNetworkIDs[2] != 0U) || (UnselectedNetworkIDs[3] != 0U))) {
+                        if ((UnselectedNetworkIDs[0] != 0U) || (UnselectedNetworkIDs[1] != 0U) || (UnselectedNetworkIDs[2] != 0U) ||
+                            (UnselectedNetworkIDs[3] != 0U)) {
                             return;
                         }
 
@@ -1574,8 +1595,7 @@ void NewGamePopup::OnLButtonDown(UINT nFlags, CPoint point) {
                 KlackerTafel.Warp();
             }
 
-            if (PageNum == PAGE_TYPE::SELECT_PLAYER_SINGLEPLAYER || PageNum == PAGE_TYPE::SELECT_PLAYER_CAMPAIGN ||
-                PageNum == PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER) {
+            if (isPlayerSelect(PageNum)) {
                 if (PageNum == PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER && gNetworkSavegameLoading != -1 && !GridPos.IfIsWithin(1, 15, 7, 15)) {
                     return;
                 }
@@ -1664,7 +1684,7 @@ void NewGamePopup::OnLButtonDown(UINT nFlags, CPoint point) {
                 }
             }
 
-            if (PageNum == PAGE_TYPE::SELECT_BOT_SINGLEPLAYER || PageNum == PAGE_TYPE::SELECT_BOT_CAMPAIGN) {
+            if (isBotSelect(PageNum) && (PageNum != PAGE_TYPE::SELECT_BOT_NETWORK || bThisIsSessionMaster)) {
                 for (SLONG c = 0; c < 4; c++) {
                     // Check for Click at Persons
                     if (point.x >= 128 && point.x <= 128 + 16 * 24 && point.y >= c * 22 * 3 + 129 && point.y <= c * 22 * 3 + 129 + 44) {
@@ -1674,6 +1694,7 @@ void NewGamePopup::OnLButtonDown(UINT nFlags, CPoint point) {
                             if (qPlayer.BotLevel > 3) {
                                 qPlayer.BotLevel = 0;
                             }
+                            SIM::SendSimpleMessage(ATNET_BOTSELECT, 0, c, qPlayer.BotLevel);
                         }
 
                         if (point.x < 175 + 48) {
@@ -2015,7 +2036,7 @@ void NewGamePopup::OnRButtonDown(UINT /*nFlags*/, CPoint point) {
             Sim.Difficulty = MissionValues[SessionMissionID];
             RefreshKlackerField();
         }
-    } else if (PageNum == PAGE_TYPE::SELECT_BOT_SINGLEPLAYER || PageNum == PAGE_TYPE::SELECT_BOT_CAMPAIGN) {
+    } else if (isBotSelect(PageNum) && (PageNum != PAGE_TYPE::SELECT_BOT_NETWORK || bThisIsSessionMaster)) {
         for (SLONG c = 0; c < 4; c++) {
             // Check for Click at Persons
             if (point.x >= 128 && point.x <= 128 + 16 * 24 && point.y >= c * 22 * 3 + 129 && point.y <= c * 22 * 3 + 129 + 44) {
@@ -2025,6 +2046,7 @@ void NewGamePopup::OnRButtonDown(UINT /*nFlags*/, CPoint point) {
                     if (qPlayer.BotLevel < 0) {
                         qPlayer.BotLevel = 3;
                     }
+                    SIM::SendSimpleMessage(ATNET_BOTSELECT, 0, c, qPlayer.BotLevel);
                 }
 
                 if (point.x < 175 + 48) {
@@ -2040,7 +2062,7 @@ void NewGamePopup::OnRButtonDown(UINT /*nFlags*/, CPoint point) {
 
 void NewGamePopup::CheckNetEvents() {
     if (PageNum == PAGE_TYPE::MULTIPLAYER_SELECT_NETWORK || PageNum == PAGE_TYPE::MULTIPLAYER_SELECT_SESSION ||
-        PageNum == PAGE_TYPE::MULTIPLAYER_CREATE_SESSION || PageNum == PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER) {
+        PageNum == PAGE_TYPE::MULTIPLAYER_CREATE_SESSION || PageNum == PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER || PageNum == PAGE_TYPE::SELECT_BOT_NETWORK) {
         if (gNetwork.IsInitialized() && (gNetwork.GetMessageCount() != 0)) {
             TEAKFILE Message;
 
@@ -2050,7 +2072,7 @@ void NewGamePopup::CheckNetEvents() {
                 ULONG Par2 = 0;
                 Message >> MessageType;
 
-                // AT_Log_I("Net", "Received net event: %s", Translate_ATNET(MessageType));
+                // AT_Log_I("NET", "Received net event: %s (%x)", Translate_ATNET(MessageType), MessageType);
 
                 switch (MessageType) {
                 case ATNET_ENTERNAME:
@@ -2221,6 +2243,23 @@ void NewGamePopup::CheckNetEvents() {
                     RefreshKlackerField();
                 } break;
 
+                case ATNET_BOTSELECT: {
+                    if (!bThisIsSessionMaster) {
+                        PageNum = PAGE_TYPE::SELECT_BOT_NETWORK;
+
+                        SLONG BotIndex = 0;
+                        ULONG BotDifficulty = 0;
+                        Message >> BotIndex >> BotDifficulty;
+
+                        if (BotIndex >= 0 && BotIndex < 4) {
+                            Sim.Players.Players[BotIndex].Owner = 1;
+                            Sim.Players.Players[BotIndex].BotLevel = BotDifficulty;
+                        }
+
+                        RefreshKlackerField();
+                    }
+                } break;
+
                 case ATNET_WANNALEAVE:
                     if (bThisIsSessionMaster) {
                         ULONG SenderID = 0;
@@ -2247,7 +2286,7 @@ void NewGamePopup::CheckNetEvents() {
                     break;
 
                 case ATNET_BEGINGAME:
-                    if (PageNum == PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER) {
+                    if (PageNum == PAGE_TYPE::SELECT_BOT_NETWORK) {
                         SLONG Time = 0;
                         SLONG difficulty = 0;
 
@@ -2346,7 +2385,7 @@ void NewGamePopup::CheckNetEvents() {
                     break;
 
                 case DPSYS_HOST:
-                    if (PageNum == PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER) {
+                    if ((PageNum == PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER) || (PageNum == PAGE_TYPE::SELECT_BOT_NETWORK)) {
                         gNetwork.CloseSession();
                         PageNum = PAGE_TYPE::MULTIPLAYER_SELECT_SESSION;
                         gNetwork.StartGetSessionListAsync();
@@ -2420,7 +2459,7 @@ void NewGamePopup::OnTimer(UINT nIDEvent) {
     }
 
     // Logo-rotation korrigieren:
-    if (PageNum == PAGE_TYPE::SELECT_PLAYER_SINGLEPLAYER || PageNum == PAGE_TYPE::SELECT_PLAYER_CAMPAIGN || PageNum == PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER) {
+    if (isPlayerSelect(PageNum)) {
         for (c = 0; c < 4; c++) {
             if (KlackerTafel.Haben[3 + (c * 2 + 2) * 24] == l - 1) {
                 KlackerTafel.Haben[3 + (c * 2 + 2) * 24] = UBYTE(LogoBms.AnzEntries() - 1);
@@ -2522,8 +2561,7 @@ void NewGamePopup::OnChar(UINT nChar, UINT nRepCnt, UINT nFlags) {
 
     nChar = KeycodeToUpper(nChar);
 
-    if (CursorY != -1 &&
-        (PageNum == PAGE_TYPE::SELECT_PLAYER_SINGLEPLAYER || PageNum == PAGE_TYPE::SELECT_PLAYER_CAMPAIGN || PageNum == PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER)) {
+    if (CursorY != -1 && isPlayerSelect(PageNum)) {
         if (nChar == '-' || nChar == ' ' || (nChar >= 'A' && nChar <= 'Z') || nChar == '\xC4' || nChar == '\xD6' || nChar == '\xDC' || nChar == '.') {
             if (CursorX < 0) {
                 if (nChar != ' ') {
@@ -2572,8 +2610,7 @@ void NewGamePopup::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
         CStdRaum::OnKeyDown(nChar, nRepCnt, nFlags);
     }
 
-    if (CursorY != -1 &&
-        (PageNum == PAGE_TYPE::SELECT_PLAYER_SINGLEPLAYER || PageNum == PAGE_TYPE::SELECT_PLAYER_CAMPAIGN || PageNum == PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER)) {
+    if (CursorY != -1 && isPlayerSelect(PageNum)) {
         if (nChar == ATKEY_LEFT) {
             if (CursorX > 0) {
                 CursorX--;
@@ -2696,8 +2733,8 @@ void NewGamePopup::PushName(SLONG n) {
 //--------------------------------------------------------------------------------------------
 bool SIM::SendMemFile(TEAKFILE &file, ULONG target, bool useCompression) {
     useCompression = false;
-    /*AT_Log_I("Net", "Send Event: %s TO: %x",
-             Translate_ATNET((file.MemBuffer[3] << 24) | (file.MemBuffer[2] << 16) | (file.MemBuffer[1] << 8) | (file.MemBuffer[0])), target);*/
+    // ULONG eventId = (file.MemBuffer[3] << 24) | (file.MemBuffer[2] << 16) | (file.MemBuffer[1] << 8) | (file.MemBuffer[0]);
+    // AT_Log_I("NET", "Send Event: %s (%x) TO: %x", Translate_ATNET(eventId), eventId, target);
 
     if (((Sim.bNetwork != 0) || (bNetworkUnderway != 0)) && gNetwork.IsInSession()) {
         return gNetwork.Send(file.MemBuffer, file.MemBufferUsed, target, useCompression);

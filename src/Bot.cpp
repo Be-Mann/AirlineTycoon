@@ -235,7 +235,7 @@ void Bot::RobotInit() {
 
         if (qPlayer.RobotUse(ROBOT_USE_DESIGNER_BUY)) {
             // Path will be "%AppPath%/myplanes/"
-            CString path{AppPath + MyPlanePath.Left(MyPlanePath.GetLength() - 3)};
+            CString path{AppPath + MyPlanePath};
             fs::create_directory(path.c_str());
 
             if (Sim.Difficulty == DIFF_ATFS05) {

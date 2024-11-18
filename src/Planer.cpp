@@ -3034,27 +3034,28 @@ void CPlaner::AutoPlan(SLONG mode) {
         return;
     }
 
-    if (mode == 1) {
-        BotPlaner bot(qPlayer, qPlayer.Planes);
-        bot.addJobSource(BotPlaner::JobOwner::BacklogFreight, {});
-        bot.setMinScoreRatio(1);
-        bot.setMinScoreRatioLastMinute(1);
-        auto solutions = bot.generateSolution(planeIds, {}, kAvailTimeExtra);
-        BotPlaner::takeAllJobs(qPlayer, solutions);
-        BotPlaner::applySolution(qPlayer, solutions);
-        Helper::checkFlightJobs(qPlayer, true, true);
-        return;
-    }
+    BotPlaner bot(qPlayer, qPlayer.Planes);
 
-    if (mode == 2) {
-        BotPlaner bot(qPlayer, qPlayer.Planes);
-        bot.addJobSource(BotPlaner::JobOwner::InternationalFreight, cities);
-        bot.setMinScoreRatio(1);
-        bot.setMinScoreRatioLastMinute(1);
-        auto solutions = bot.generateSolution(planeIds, {}, kAvailTimeExtra);
-        BotPlaner::takeAllJobs(qPlayer, solutions);
-        BotPlaner::applySolution(qPlayer, solutions);
-        Helper::checkFlightJobs(qPlayer, true, true);
-        return;
+    if (mode >= 1) {
+        if (Helper::checkRoomOpen(ACTION_CHECKAGENT2)) {
+            bot.addJobSource(BotPlaner::JobOwner::TravelAgency, {});
+        }
+        if (Helper::checkRoomOpen(ACTION_CHECKAGENT1)) {
+            bot.addJobSource(BotPlaner::JobOwner::LastMinute, {});
+        }
+        if (Helper::checkRoomOpen(ACTION_CHECKAGENT3)) {
+            bot.addJobSource(BotPlaner::JobOwner::Freight, {});
+        }
     }
+    if ((mode >= 2) && !cities.empty()) {
+        bot.addJobSource(BotPlaner::JobOwner::International, cities);
+        bot.addJobSource(BotPlaner::JobOwner::InternationalFreight, cities);
+    }
+    bot.setMinScoreRatio(14 * 1000.0f);
+    bot.setMinScoreRatioLastMinute(1 * 1000.0f);
+    auto solutions = bot.generateSolution(planeIds, {}, kAvailTimeExtra);
+
+    BotPlaner::takeAllJobs(qPlayer, solutions);
+    BotPlaner::applySolution(qPlayer, solutions);
+    Helper::checkFlightJobs(qPlayer, true, true);
 }

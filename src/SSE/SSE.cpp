@@ -1,4 +1,5 @@
 #include "defines.h"
+#include "global.h"
 #include "Proto.h"
 #include "sbl.h"
 #include "SSE.h"
@@ -6,6 +7,7 @@
 #include <SDL_mixer.h>
 
 #include <algorithm>
+#include <filesystem>
 #include <vector>
 
 #define AT_Log(...) AT_Log_I("Sound", __VA_ARGS__)
@@ -610,21 +612,31 @@ SLONG MIDI::GetPan(SLONG * /*pPan*/) { return SSE_OK; }
 
 SLONG MIDI::SetPan(SLONG /*pan*/) { return SSE_OK; }
 
-SLONG MIDI::Load(const char *file) {
+SLONG MIDI::Load(const CString &file) {
     if (_music != nullptr) {
         Free();
     }
 
-    _musicData.file = file;
+    fs::path path{file.c_str()};
+    fs::path rootPath{SoundPath.c_str()};
+    auto pathToMIDI = FullFilesystemPath(path, rootPath);
+    auto pathToOgg = FullFilesystemPath(path.replace_extension("ogg"), rootPath);
 
-    if (_mode == 1) {
-        _music = Mix_LoadMUS(_musicData.file.c_str());
-        // Some versions ship with ogg music as well, use it as a fall-back
-    } else if (_mode == 2) {
-        _musicData.file.replace(_musicData.file.size() - 3, 3, "ogg");
-        _music = Mix_LoadMUS(_musicData.file.c_str());
+    // Some versions ship with ogg music as well, use it as a fall-back
+    if (_mode == 1 && !fs::exists(pathToMIDI)) {
+        _mode = 2;
+    }
+    if (_mode != 1 && !fs::exists(pathToOgg)) {
+        _mode = 1;
     }
 
+    if (_mode == 1) {
+        _musicData.file = pathToMIDI.string();
+    } else {
+        _musicData.file = pathToOgg.string();
+    }
+
+    _music = Mix_LoadMUS(_musicData.file.c_str());
     if (_music == nullptr) {
         AT_Log_Generic("Could not load music: %s\n", _musicData.file.c_str());
     }

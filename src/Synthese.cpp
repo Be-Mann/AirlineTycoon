@@ -48,7 +48,7 @@ void SynthesizeNumber(SBFX *TargetFx, const CString &Talker, SLONG Number, BOOL 
     if (c == 2) {
         TalkerId[TalkerLastLoaded] = Talker;
 
-        TalkerFx[TalkerLastLoaded].ReInit(Talker + "numbers.raw", const_cast<char *>((LPCTSTR)MiscPath));
+        TalkerFx[TalkerLastLoaded].ReInit(Talker + "numbers.raw", MiscPath);
         TalkerFx[TalkerLastLoaded].Tokenize(TalkerFxVon[TalkerLastLoaded], TalkerFxBis[TalkerLastLoaded]);
 
         // NumberFx.Tokenize (TalkerFx[TalkerLastLoaded]);

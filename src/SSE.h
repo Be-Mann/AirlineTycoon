@@ -264,7 +264,7 @@ class DIGITAL {
     virtual bool StopPriority(dword flags) = 0;
 
   public:
-    virtual ~DIGITAL(){};
+    virtual ~DIGITAL() {};
     virtual SLONG Release() = 0;
     virtual SLONG Play(dword dwFlags = 0, SLONG pan = 0) = 0;
     virtual SLONG Stop() = 0;
@@ -310,7 +310,7 @@ class FX : public DIGITAL {
     virtual SLONG GetPan(SLONG *pPan);
     virtual SLONG SetPan(SLONG pan);
     virtual SLONG Load(const char *file = NULL);
-    virtual SLONG Fusion(const std::vector<FX*>& Fx);
+    virtual SLONG Fusion(const std::vector<FX *> &Fx);
     virtual SLONG Fusion(const FX *Fx, SLONG *Von, SLONG *Bis, SLONG NumFx);
     virtual SLONG Tokenize(__int64 Token, SLONG *Von, SLONG *Bis, SLONG &rcAnzahl);
     virtual FX **Tokenize(__int64 Token, SLONG &rcAnzahl);
@@ -342,7 +342,7 @@ class MUSIC {
     virtual bool StopPriority(dword flags) = 0;
 
   public:
-    virtual ~MUSIC(){};
+    virtual ~MUSIC() {};
     virtual SLONG Release() = 0;
     DllExport virtual SLONG Play(dword dwFlags = 0, SLONG pan = 0) = 0;
     virtual SLONG Stop() = 0;
@@ -352,7 +352,7 @@ class MUSIC {
     virtual SLONG SetVolume(SLONG volume) = 0;
     virtual SLONG GetPan(SLONG *pPan) = 0;
     virtual SLONG SetPan(SLONG pan) = 0;
-    virtual SLONG Load(const char *file = NULL) = 0;
+    virtual SLONG Load(const CString &file) = 0;
     virtual SLONG Free() = 0;
 
     virtual SLONG GetStatus(dword *pStatus) = 0;
@@ -386,7 +386,7 @@ class MIDI : public MUSIC {
     virtual SLONG SetVolume(SLONG volume);
     virtual SLONG GetPan(SLONG *pPan);
     virtual SLONG SetPan(SLONG pan);
-    virtual SLONG Load(const char *file = NULL);
+    virtual SLONG Load(const CString &file);
     virtual SLONG Free();
     virtual void SetMode(SLONG mode);
 
