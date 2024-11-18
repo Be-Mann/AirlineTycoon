@@ -7,8 +7,14 @@
 #include "helper.h"
 #include "Proto.h"
 
-#include <cmath>
 #include <smacker.h>
+
+#include <cmath>
+
+#define AT_Error(...) Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_ERROR, "SMACK", __VA_ARGS__)
+#define AT_Warn(...) Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_WARN, "SMACK", __VA_ARGS__)
+#define AT_Info(...) Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_INFO, "SMACK", __VA_ARGS__)
+#define AT_Log(...) AT_Log_I("SMACK", __VA_ARGS__)
 
 //--------------------------------------------------------------------------------------------
 // Berechnet eine Remapper-Tabelle anhand einer 256-Farben Palette
@@ -32,37 +38,169 @@ void CalculatePalettemapper(const UBYTE *pPalette, SDL_Palette *pPaletteMapper) 
     SDL_SetPaletteColors(pPaletteMapper, colors, 0, 256);
 }
 
+void CalculatePalettemapperFlc(const flic::Colormap &colormap, SDL_Palette *pPaletteMapper) {
+    SDL_Color colors[256];
+
+    for (SLONG c = 0; c < 256; c++) {
+        if (colormap[c].r + colormap[c].g + colormap[c].b == 0) {
+            colors[c] = SDL_Color{4, 4, 4, 0xFF};
+        } else {
+            colors[c] = SDL_Color{colormap[c].r, colormap[c].g, colormap[c].b, 0xFF};
+        }
+    }
+
+    colors[0] = SDL_Color{0, 0, 0, 255};
+    SDL_SetPaletteColors(pPaletteMapper, colors, 0, 256);
+}
+
+//--------------------------------------------------------------------------------------------
+// Wrapper around FLIC library, containing file handles and all data structures
+//--------------------------------------------------------------------------------------------
+FlcWrapper::FlcWrapper(fs::path fileInput) : Path{fileInput} {
+    if (!fs::exists(Path)) {
+        AT_Error("FlcWrapper: File %s does not exist!", Path.c_str());
+        return;
+    }
+    init_decoder();
+}
+
+FlcWrapper::~FlcWrapper() {
+    Decoder = {nullptr};
+    FileInterface = {nullptr};
+    fclose(f);
+    f = nullptr;
+}
+
+void FlcWrapper::info_all(unsigned long &FrameNum, unsigned long &Frames) {
+    FrameNum = Decoder.getCurrentFrameCount();
+    Frames = Header.frames;
+}
+
+void FlcWrapper::info_video(unsigned long &Width, unsigned long &Height, unsigned long &Speed) {
+    Width = Header.width;
+    Height = Header.height;
+    Speed = Header.speed;
+}
+
+char FlcWrapper::first() {
+    memset(Buffer.data(), 0x0, Buffer.size() * sizeof(uint8_t));
+    init_decoder();
+    return render();
+}
+
+char FlcWrapper::next() { return render(); }
+
+const unsigned char *FlcWrapper::get_video() { return Buffer.data(); }
+
+const flic::Colormap &FlcWrapper::get_palette() { return Frame.colormap; }
+
+void FlcWrapper::init_decoder() {
+    if (f) {
+        fclose(f);
+    }
+
+    f = std::fopen(Path.string().c_str(), "rb");
+    if (!f) {
+        AT_Error("FlcWrapper: Failed to open %s: errno %d!", Path.c_str(), errno);
+        return;
+    }
+
+    FileInterface = {f};
+    if (!FileInterface.ok()) {
+        AT_Error("FlcWrapper: Failed to create file interface for %s!", Path.c_str());
+        FileInterface = {nullptr};
+        fclose(f);
+        f = nullptr;
+        return;
+    }
+
+    // FileInterface.seek(0);
+
+    Decoder = {&FileInterface};
+    if (!Decoder.readHeader(Header)) {
+        AT_Error("FlcWrapper: Failed to read header of %s!", Path.c_str());
+        Decoder = {nullptr};
+        return;
+    }
+
+    Buffer.resize(Header.width * Header.height);
+    Frame.rowstride = Header.width;
+}
+
+char FlcWrapper::render() {
+    Frame.pixels = Buffer.data();
+    if (!Decoder.readFrame(Frame)) {
+        AT_Error("FlcWrapper: Failed to decode frame!");
+    }
+
+    int cur = Decoder.getCurrentFrameCount();
+    if (cur >= 0 && cur < Header.frames - 1) {
+        // AT_Log("%s: SMK_MORE %lu/%lu", Path.c_str(), cur, Header.frames);
+        return SMK_MORE;
+    }
+    if (cur == Header.frames - 1) {
+        // AT_Log("%s: SMK_LAST %lu/%lu", Path.c_str(), cur, Header.frames);
+        return SMK_LAST;
+    }
+    if (cur == Header.frames) {
+        // AT_Log("%s: SMK_DONE %lu/%lu", Path.c_str(), cur, Header.frames);
+        return SMK_DONE;
+    }
+    AT_Error("%s: SMK_ERROR %lu/%lu", Path.c_str(), cur, Header.frames);
+    return SMK_ERROR;
+}
+
 //--------------------------------------------------------------------------------------------
 // CSmack16::
 //--------------------------------------------------------------------------------------------
 // Destruktor:
 //--------------------------------------------------------------------------------------------
 CSmack16::~CSmack16() {
-    if (PaletteMapper != nullptr)
+    if (PaletteMapper != nullptr) {
         SDL_FreePalette(PaletteMapper);
+    }
     if (pSmack != nullptr) {
         smk_close(pSmack);
     }
     pSmack = nullptr;
+    if (pFlc != nullptr) {
+        delete pFlc;
+    }
+    pFlc = nullptr;
 }
 
 //--------------------------------------------------------------------------------------------
 // Öffnet ein Smacker-Filmchen:
 //--------------------------------------------------------------------------------------------
 void CSmack16::Open(const CString &Filename) {
-    pSmack = smk_open_file(FullFilename(Filename, SmackerPath), SMK_MODE_MEMORY);
-    smk_enable_video(pSmack, 1U);
-    smk_info_video(pSmack, &Width, &Height, nullptr);
-    FrameNext = 0;
-    State = smk_first(pSmack);
-    PaletteMapper = SDL_AllocPalette(256);
-    CalculatePalettemapper(smk_get_palette(pSmack), PaletteMapper);
+    fs::path path{Filename.c_str()};
+    fs::path rootPath{SmackerPath.c_str()};
+    auto pathToSmk = FullFilesystemPath(path, rootPath);
+    auto pathToFlc = FullFilesystemPath(path.replace_extension("flc"), rootPath);
+
+    if (fs::exists(pathToSmk)) {
+        pSmack = smk_open_file(FullFilename(Filename, SmackerPath), SMK_MODE_MEMORY);
+        smk_enable_video(pSmack, 1U);
+        smk_info_video(pSmack, &Width, &Height, nullptr);
+        FrameNext = 0;
+        State = smk_first(pSmack);
+        PaletteMapper = SDL_AllocPalette(256);
+        CalculatePalettemapper(smk_get_palette(pSmack), PaletteMapper);
+    } else if (fs::exists(pathToFlc)) {
+        // AT_Info("Using FLC fallback: %s", pathToFlc.c_str());
+        pFlc = new FlcWrapper(pathToFlc);
+        pFlc->info_video(Width, Height, Speed);
+        FrameNext = 0;
+        State = pFlc->first();
+        PaletteMapper = SDL_AllocPalette(256);
+        CalculatePalettemapperFlc(pFlc->get_palette(), PaletteMapper);
+    }
 }
 
 //--------------------------------------------------------------------------------------------
 // Nächster Frame:
 //--------------------------------------------------------------------------------------------
-BOOL CSmack16::Next(SBBM *pTargetBm) {
+BOOL CSmack16::NextSmk(SBBM *pTargetBm) {
     if (AtGetTime() >= FrameNext && State == SMK_MORE) {
         // Take the next frame:
         State = smk_next(pSmack);
@@ -84,6 +222,36 @@ BOOL CSmack16::Next(SBBM *pTargetBm) {
     return static_cast<BOOL>(State == SMK_MORE);
 }
 
+BOOL CSmack16::NextFlc(SBBM *pTargetBm) {
+    if (AtGetTime() >= FrameNext && State == SMK_MORE) {
+        // Take the next frame:
+        State = pFlc->next();
+
+        FrameNext = AtGetTime() + Speed;
+
+        if (pTargetBm != nullptr) {
+            if (SLONG(Width) != pTargetBm->Size.x || SLONG(Height) != pTargetBm->Size.y) {
+                pTargetBm->ReSize(XY(Width, Height), CREATE_INDEXED);
+            }
+            SDL_SetPixelFormatPalette(pTargetBm->pBitmap->GetPixelFormat(), PaletteMapper);
+            SB_CBitmapKey key(*pTargetBm->pBitmap);
+            memcpy(key.Bitmap, pFlc->get_video(), key.lPitch * Height);
+        }
+    }
+
+    return static_cast<BOOL>(State == SMK_MORE);
+}
+
+BOOL CSmack16::Next(SBBM *pTargetBm) {
+    if (pSmack != nullptr) {
+        return NextSmk(pTargetBm);
+    }
+    if (pFlc != nullptr) {
+        return NextFlc(pTargetBm);
+    }
+    return false;
+}
+
 //--------------------------------------------------------------------------------------------
 // Und Feierabend:
 //--------------------------------------------------------------------------------------------
@@ -92,6 +260,10 @@ void CSmack16::Close() {
         smk_close(pSmack);
     }
     pSmack = nullptr;
+    if (pFlc != nullptr) {
+        delete pFlc;
+    }
+    pFlc = nullptr;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -99,12 +271,7 @@ void CSmack16::Close() {
 //--------------------------------------------------------------------------------------------
 // Konstruktor:
 //--------------------------------------------------------------------------------------------
-CSmackerClip::CSmackerClip() {
-    pSmack = nullptr;
-    FrameNext = 0;
-    LastFrame = 0;
-    PaletteMapper = SDL_AllocPalette(256);
-}
+CSmackerClip::CSmackerClip() { PaletteMapper = SDL_AllocPalette(256); }
 
 //--------------------------------------------------------------------------------------------
 // Destruktor:
@@ -117,6 +284,10 @@ CSmackerClip::~CSmackerClip() {
         smk_close(pSmack);
     }
     pSmack = nullptr;
+    if (pFlc != nullptr) {
+        delete pFlc;
+    }
+    pFlc = nullptr;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -127,14 +298,31 @@ void CSmackerClip::Start() {
         smk_close(pSmack);
     }
     pSmack = nullptr;
+    if (pFlc != nullptr) {
+        delete pFlc;
+    }
+    pFlc = nullptr;
 
     if (Filename.GetLength() > 0) {
-        pSmack = smk_open_file(FullFilename(Filename, SmackerPath), SMK_MODE_MEMORY);
-        smk_enable_video(pSmack, 1U);
-        smk_info_all(pSmack, &FrameNum, &Frames, nullptr);
-        smk_info_video(pSmack, &Width, &Height, nullptr);
-        smk_first(pSmack);
-        CalculatePalettemapper(smk_get_palette(pSmack), PaletteMapper);
+        fs::path path{Filename.c_str()};
+        fs::path rootPath{SmackerPath.c_str()};
+        auto pathToSmk = FullFilesystemPath(path, rootPath);
+        auto pathToFlc = FullFilesystemPath(path.replace_extension("flc"), rootPath);
+
+        if (fs::exists(pathToSmk)) {
+            pSmack = smk_open_file(pathToSmk.string().c_str(), SMK_MODE_MEMORY);
+            smk_enable_video(pSmack, 1U);
+            smk_info_all(pSmack, &FrameNum, &Frames, nullptr);
+            smk_info_video(pSmack, &Width, &Height, nullptr);
+            smk_first(pSmack);
+            CalculatePalettemapper(smk_get_palette(pSmack), PaletteMapper);
+        } else if (fs::exists(pathToFlc)) {
+            pFlc = new FlcWrapper(pathToFlc);
+            pFlc->info_all(FrameNum, Frames);
+            pFlc->info_video(Width, Height, Speed);
+            pFlc->first();
+            CalculatePalettemapperFlc(pFlc->get_palette(), PaletteMapper);
+        }
     }
 
     if (IsFXPlaying == 0) {
@@ -156,7 +344,7 @@ void CSmackerClip::Start() {
                 NextSyllable();
             } else {
                 NumSoundFx = 1;
-                SoundFx.ReInit(SoundFilename, const_cast<char *>((LPCTSTR)SmackerPath));
+                SoundFx.ReInit(SoundFilename, SmackerPath);
             }
         } else {
             NumSoundFx = 0;
@@ -174,6 +362,10 @@ void CSmackerClip::Stop() {
         smk_close(pSmack);
     }
     pSmack = nullptr;
+    if (pFlc != nullptr) {
+        delete pFlc;
+    }
+    pFlc = nullptr;
     FrameNext = 0;
     LastFrame = 0;
 
@@ -201,6 +393,9 @@ void CSmackerClip::ReSize(SLONG ClipId, const CString &Filename, const CString &
 
     if (pSmack != nullptr) {
         smk_close(pSmack);
+    }
+    if (pFlc != nullptr) {
+        delete pFlc;
     }
 
     CSmackerClip::Filename = Filename;
@@ -248,6 +443,8 @@ void CSmackerClip::ReSize(SLONG ClipId, const CString &Filename, const CString &
 
     CSmackerClip::IsFXPlaying = FALSE;
 
+    CSmackerClip::pFlc = nullptr;
+
     // Dynamische Eigenschaften...
     CSmackerClip::State = SMACKER_CLIP_INACTIVE;
     CSmackerClip::RepeatCount = 0;
@@ -280,7 +477,7 @@ void CSmackerClip::NextSyllable() {
             *pp = 0;
         }
 
-        SoundFx.ReInit(buffer, const_cast<char *>((LPCTSTR)SmackerPath));
+        SoundFx.ReInit(buffer, SmackerPath);
     }
 }
 
@@ -315,6 +512,20 @@ CSmackerPerson::CSmackerPerson() {
 //--------------------------------------------------------------------------------------------
 CSmackerPerson::~CSmackerPerson() = default;
 
+bool CSmackerPerson::clipExists(SLONG clip) const {
+    if (clip < 0 || clip >= Clips.AnzEntries()) {
+        return false;
+    }
+    return (Clips[clip].pSmack != nullptr) || (Clips[clip].pFlc != nullptr);
+}
+
+bool CSmackerPerson::isEmptyClip(SLONG clip) const {
+    if (clip < 0 || clip >= Clips.AnzEntries()) {
+        return false;
+    }
+    return (Clips[ActiveClip].pSmack == nullptr) && (Clips[ActiveClip].pFlc == nullptr);
+}
+
 //--------------------------------------------------------------------------------------------
 //
 //--------------------------------------------------------------------------------------------
@@ -323,7 +534,7 @@ void CSmackerPerson::ReSize(SLONG NumberOfClips) { Clips.ReSize(NumberOfClips); 
 //--------------------------------------------------------------------------------------------
 // Legt fest, wie die Person labert:
 //--------------------------------------------------------------------------------------------
-void CSmackerPerson::SetSpeakFx(const CString &Filename) { SpeakFx.ReInit(Filename, const_cast<char *>((LPCTSTR)SmackerPath)); }
+void CSmackerPerson::SetSpeakFx(const CString &Filename) { SpeakFx.ReInit(Filename, SmackerPath); }
 
 //--------------------------------------------------------------------------------------------
 // Legt die Stimmung (Freizeit, Reden, Zuhören) fest, in der man jemand haben will
@@ -353,7 +564,7 @@ SLONG CSmackerPerson::GetClip() { return (ActiveClip); }
 //
 //--------------------------------------------------------------------------------------------
 SLONG CSmackerPerson::GetFrame() const {
-    if (ActiveClip != -1 && (Clips[ActiveClip].pSmack != nullptr)) {
+    if (clipExists(ActiveClip)) {
         return (Clips[ActiveClip].FrameNum);
     }
     return (0);
@@ -366,6 +577,71 @@ void CSmackerPerson::ForceNextClip() {
     Clips[ActiveClip].Stop();
     Clips[ActiveClip].State = SMACKER_CLIP_INACTIVE;
     NextClip();
+}
+
+void CSmackerPerson::CopyFrameSmk() {
+    CalculatePalettemapper(smk_get_palette(Clips[ActiveClip].pSmack), Clips[ActiveClip].PaletteMapper);
+    Bitmap.ReSize(XY(Clips[ActiveClip].Width, Clips[ActiveClip].Height), CREATE_INDEXED);
+    SDL_SetPixelFormatPalette(Bitmap.pBitmap->GetPixelFormat(), Clips[ActiveClip].PaletteMapper);
+    {
+        SB_CBitmapKey key(*Bitmap.pBitmap);
+        memcpy(key.Bitmap, smk_get_video(Clips[ActiveClip].pSmack), key.lPitch * Clips[ActiveClip].Height);
+    }
+    BitmapPos = Clips[ActiveClip].ScreenOffset;
+}
+
+void CSmackerPerson::DecodeFrameSmk() {
+    DOUBLE usf = NAN;
+    if (Clips[ActiveClip].FrameNum >= Clips[ActiveClip].Frames - 1) {
+        smk_first(Clips[ActiveClip].pSmack);
+    } else {
+        smk_next(Clips[ActiveClip].pSmack);
+    }
+    smk_info_all(Clips[ActiveClip].pSmack, &Clips[ActiveClip].FrameNum, &Clips[ActiveClip].Frames, &usf);
+    Clips[ActiveClip].FrameNext = AtGetTime() + (usf / 1000.0);
+}
+
+void CSmackerPerson::CopyFrameFlc() {
+    CalculatePalettemapperFlc(Clips[ActiveClip].pFlc->get_palette(), Clips[ActiveClip].PaletteMapper);
+    Bitmap.ReSize(XY(Clips[ActiveClip].Width, Clips[ActiveClip].Height), CREATE_INDEXED);
+    SDL_SetPixelFormatPalette(Bitmap.pBitmap->GetPixelFormat(), Clips[ActiveClip].PaletteMapper);
+    {
+        SB_CBitmapKey key(*Bitmap.pBitmap);
+        memcpy(key.Bitmap, Clips[ActiveClip].pFlc->get_video(), key.lPitch * Clips[ActiveClip].Height);
+    }
+    BitmapPos = Clips[ActiveClip].ScreenOffset;
+}
+
+void CSmackerPerson::DecodeFrameFlc() {
+    if (Clips[ActiveClip].FrameNum >= Clips[ActiveClip].Frames - 1) {
+        Clips[ActiveClip].pFlc->first();
+    } else {
+        Clips[ActiveClip].pFlc->next();
+    }
+    Clips[ActiveClip].pFlc->info_all(Clips[ActiveClip].FrameNum, Clips[ActiveClip].Frames);
+    Clips[ActiveClip].FrameNext = AtGetTime() + Clips[ActiveClip].Speed;
+}
+
+void CSmackerPerson::CopyFrame() {
+    if (ActiveClip < 0 || ActiveClip >= Clips.AnzEntries()) {
+        return;
+    }
+    if (Clips[ActiveClip].pSmack != nullptr) {
+        CopyFrameSmk();
+    } else if (Clips[ActiveClip].pFlc != nullptr) {
+        CopyFrameFlc();
+    }
+}
+
+void CSmackerPerson::DecodeFrame() {
+    if (ActiveClip < 0 || ActiveClip >= Clips.AnzEntries()) {
+        return;
+    }
+    if (Clips[ActiveClip].pSmack != nullptr) {
+        DecodeFrameSmk();
+    } else if (Clips[ActiveClip].pFlc != nullptr) {
+        DecodeFrameFlc();
+    }
 }
 
 //--------------------------------------------------------------------------------------------
@@ -382,30 +658,16 @@ void CSmackerPerson::Pump() {
     }
 
     // Wenn gerade ein Leerclip abgespielt wird:
-    if (ActiveClip != -1 && Clips[ActiveClip].pSmack == nullptr) {
+    if (isEmptyClip(ActiveClip)) {
         Clips[ActiveClip].Stop();
         Clips[ActiveClip].State = SMACKER_CLIP_INACTIVE;
         NextClip();
 
-        if (Clips[ActiveClip].pSmack != nullptr && ActiveClip != -1) {
-            CalculatePalettemapper(smk_get_palette(Clips[ActiveClip].pSmack), Clips[ActiveClip].PaletteMapper);
-            Bitmap.ReSize(XY(Clips[ActiveClip].Width, Clips[ActiveClip].Height), CREATE_INDEXED);
-            SDL_SetPixelFormatPalette(Bitmap.pBitmap->GetPixelFormat(), Clips[ActiveClip].PaletteMapper);
-            {
-                SB_CBitmapKey key(*Bitmap.pBitmap);
-                memcpy(key.Bitmap, smk_get_video(Clips[ActiveClip].pSmack), key.lPitch * Clips[ActiveClip].Height);
-            }
-            BitmapPos = Clips[ActiveClip].ScreenOffset;
-
-            if (Clips[ActiveClip].FrameNum == 0 && (Clips[ActiveClip].IsFXPlaying == 0)) {
-                Clips[ActiveClip].PlaySyllable();
-            }
-
-            DOUBLE usf = NAN;
-            smk_next(Clips[ActiveClip].pSmack);
-            smk_info_all(Clips[ActiveClip].pSmack, &Clips[ActiveClip].FrameNum, &Clips[ActiveClip].Frames, &usf);
-            Clips[ActiveClip].FrameNext = AtGetTime() + (usf / 1000.0);
+        CopyFrame();
+        if (Clips[ActiveClip].FrameNum == 0 && (Clips[ActiveClip].IsFXPlaying == 0)) {
+            Clips[ActiveClip].PlaySyllable();
         }
+        DecodeFrame();
 
         return;
     }
@@ -422,27 +684,11 @@ void CSmackerPerson::Pump() {
         Clips[ActiveClip].State = SMACKER_CLIP_PLAYING;
         Clips[ActiveClip].Start();
 
-        if (Clips[ActiveClip].pSmack == nullptr) {
-            return;
-        }
-
-        CalculatePalettemapper(smk_get_palette(Clips[ActiveClip].pSmack), Clips[ActiveClip].PaletteMapper);
-        Bitmap.ReSize(XY(Clips[ActiveClip].Width, Clips[ActiveClip].Height), CREATE_INDEXED);
-        SDL_SetPixelFormatPalette(Bitmap.pBitmap->GetPixelFormat(), Clips[ActiveClip].PaletteMapper);
-        {
-            SB_CBitmapKey key(*Bitmap.pBitmap);
-            memcpy(key.Bitmap, smk_get_video(Clips[ActiveClip].pSmack), key.lPitch * Clips[ActiveClip].Height);
-        }
-        BitmapPos = Clips[ActiveClip].ScreenOffset;
-
+        CopyFrame();
         if (Clips[ActiveClip].FrameNum == 0 && (Clips[ActiveClip].IsFXPlaying == 0)) {
             Clips[ActiveClip].PlaySyllable();
         }
-
-        DOUBLE usf = NAN;
-        smk_next(Clips[ActiveClip].pSmack);
-        smk_info_all(Clips[ActiveClip].pSmack, &Clips[ActiveClip].FrameNum, &Clips[ActiveClip].Frames, &usf);
-        Clips[ActiveClip].FrameNext = AtGetTime() + (usf / 1000.0);
+        DecodeFrame();
     }
 
     if ((Clips[ActiveClip].CanCancelClip != 0) &&
@@ -456,15 +702,7 @@ void CSmackerPerson::Pump() {
 
     if (Clips[ActiveClip].State == SMACKER_CLIP_PLAYING) {
         if (AtGetTime() >= Clips[ActiveClip].FrameNext) {
-            // Take the next frame:
-            CalculatePalettemapper(smk_get_palette(Clips[ActiveClip].pSmack), Clips[ActiveClip].PaletteMapper);
-            Bitmap.ReSize(XY(Clips[ActiveClip].Width, Clips[ActiveClip].Height), CREATE_INDEXED);
-            SDL_SetPixelFormatPalette(Bitmap.pBitmap->GetPixelFormat(), Clips[ActiveClip].PaletteMapper);
-            {
-                SB_CBitmapKey key(*Bitmap.pBitmap);
-                memcpy(key.Bitmap, smk_get_video(Clips[ActiveClip].pSmack), key.lPitch * Clips[ActiveClip].Height);
-            }
-            BitmapPos = Clips[ActiveClip].ScreenOffset;
+            CopyFrame();
 
             // Variablenveränderung, während der Film läuft?
             if ((Clips[ActiveClip].PostVar != nullptr) && ((Clips[ActiveClip].PostOperation & SMACKER_CLIP_FRAME) != 0)) // Variablen-Messageing:
@@ -528,14 +766,7 @@ void CSmackerPerson::Pump() {
                     Clips[ActiveClip].PlaySyllable();
                 }
 
-                DOUBLE usf = NAN;
-                if (Clips[ActiveClip].FrameNum >= Clips[ActiveClip].Frames - 1) {
-                    smk_first(Clips[ActiveClip].pSmack);
-                } else {
-                    smk_next(Clips[ActiveClip].pSmack);
-                }
-                smk_info_all(Clips[ActiveClip].pSmack, &Clips[ActiveClip].FrameNum, &Clips[ActiveClip].Frames, &usf);
-                Clips[ActiveClip].FrameNext = AtGetTime() + (usf / 1000.0);
+                DecodeFrame();
             }
         }
     } else if (Clips[ActiveClip].State == SMACKER_CLIP_WAITING) {
@@ -788,7 +1019,7 @@ found_next_clip:
         }
     }
 
-    if (Clips[ActiveClip].pSmack == nullptr && Clips[ActiveClip].PostWait.x == 0 && Clips[ActiveClip].PostWait.y == 0) {
+    if (isEmptyClip(ActiveClip) && Clips[ActiveClip].PostWait.x == 0 && Clips[ActiveClip].PostWait.y == 0) {
         NextClip();
     }
 }
@@ -797,7 +1028,7 @@ found_next_clip:
 // Blittet eine Person in eine Bitmap:
 //--------------------------------------------------------------------------------------------
 void CSmackerPerson::BlitAtT(SBBM &RoomBm, XY Offset) {
-    if (ActiveClip != -1 && (Clips[ActiveClip].pSmack != nullptr)) {
+    if (clipExists(ActiveClip)) {
         RoomBm.BlitFromT(Bitmap, BitmapPos + Offset);
     }
 }

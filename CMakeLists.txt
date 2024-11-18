@@ -56,6 +56,8 @@ if (WIN32 OR APPLE)
     include_directories(libs/jansson/include)
 endif()
 
+include_directories(libs/libflic/repo)
+
 find_package(SDL2main REQUIRED)
 find_package(SDL2_mixer REQUIRED)
 find_package(SDL2_image REQUIRED)

@@ -34,6 +34,7 @@ class NewGamePopup : public CStdRaum {
 
         SELECT_BOT_SINGLEPLAYER = 22,
         SELECT_BOT_CAMPAIGN = 23,
+        SELECT_BOT_NETWORK = 24,
 
         MULTIPLAYER_SELECT_NETWORK = 13,
         MULTIPLAYER_SELECT_SESSION = 15,
@@ -46,9 +47,13 @@ class NewGamePopup : public CStdRaum {
         MP_LOADING = 99,
     };
     constexpr BOOL isPlayerSelect(PAGE_TYPE PageNum) {
-        return PageNum == PAGE_TYPE::SELECT_PLAYER_SINGLEPLAYER || PageNum == PAGE_TYPE::SELECT_PLAYER_CAMPAIGN ||
-               PageNum == PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER || PageNum == PAGE_TYPE::SELECT_BOT_SINGLEPLAYER || PageNum == PAGE_TYPE::SELECT_BOT_CAMPAIGN;
+        return (PageNum == PAGE_TYPE::SELECT_PLAYER_SINGLEPLAYER || PageNum == PAGE_TYPE::SELECT_PLAYER_CAMPAIGN ||
+                PageNum == PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER);
     }
+    constexpr BOOL isBotSelect(PAGE_TYPE PageNum) {
+        return (PageNum == PAGE_TYPE::SELECT_BOT_SINGLEPLAYER || PageNum == PAGE_TYPE::SELECT_BOT_CAMPAIGN || PageNum == PAGE_TYPE::SELECT_BOT_NETWORK);
+    }
+    constexpr BOOL isPlayerOrBotSelect(PAGE_TYPE PageNum) { return (isPlayerSelect(PageNum) || isBotSelect(PageNum)); }
 
     BOOL TimerFailure{};
     PAGE_TYPE PageNum; // Seite 1 oder 2
