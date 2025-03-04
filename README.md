@@ -66,7 +66,7 @@ You can see the instructions to build and run the project in [BUILDING.md](BUILD
 
 | Features | Existing computer player | New computer player |
 | -------- | ------- | ------- |
-| Flight planning | ❌ Simple greedy heuristc | ✅ 'Simulated annealing' heuristic minimizing empty flights |
+| Flight planning | ❌ Simple greedy heuristic | ✅ 'Simulated annealing' heuristic minimizing empty flights |
 | Plane repairs | ❌ Usually high repair costs | ✅ Low repair cost by putting planes with repair deficit temporarily out of service |
 | Delays | ❌ Does not fix schedule if flight was bumped to next day | ✅ Tries to reorganize to avoid delays |
 | Route ticket pricing | ❌ Only based on competitor prices | ✅ Sophisticated strategy to improve route utilization and optimize income |
@@ -146,21 +146,21 @@ You can see the instructions to build and run the project in [BUILDING.md](BUILD
     * Now passenger happiness is booked to the statistic of the sabotaging player
 * 'Plane crash' sabotage now also affects stock price of victim
 * Fix calculation of plane repair cost
-    * All cost will show up in plane saldo
+    * All cost will show up in plane's balance
     * All cost will show up in plane repair cost total
-    * Correctly calculate plane saldo over past 7 days
+    * Correctly calculate plane's balance over past 7 days
 * Consider also number of first class passengers for statistics
 * Do not show route utilization for defeated players
-* New sound options (OGG/MIDI) + patched stuttering glich when switching music on Windows 11
+* New sound options (OGG/MIDI) + patched stuttering glitch when switching music on Windows 11
 * Patched Space station mission prices and texts in stats
 * Patched various text scrambling on UI
 * Bug fixed in calculation in maximum amount of stock that can be emitted
     * Bug limited max amount of stock to around 2.1 million
-    * Intger overflow is fixed now, but the originally intended limit of 250 million was changed to 2.5 million
+    * Integer overflow is fixed now, but the originally intended limit of 250 million was changed to 2.5 million
 * Fixed game shifting flights on its own even if they are already locked
     * Could previously cause double-booking of flights (income and cost booked twice)
-* Fixed crash in plane designer when attaching enginges to left side of tail
-* Timeout for sabotage: Jobs cancelled if it was not possible to execute job for some time
+* Fixed crash in plane designer when attaching engines to left side of tail
+* Timeout for sabotage: Jobs canceled if it was not possible to execute job for some time
     * Can happen if selected plane is not used anymore by owner
     * Without this fix in a situation like this the player would never be able to use sabotage again
 * Fixed bug where player can 'survive' being overtaken by skipping dialog at the right moment
@@ -182,7 +182,7 @@ You can see the instructions to build and run the project in [BUILDING.md](BUILD
 * Remove sabotage advantages
     * Computer now has to pay for sabotage as well
     * Consider all security measures (e.g. plane crash not possible anymore if plane is protected)
-    * Align calculation of arab trust for player and computer
+    * Align calculation of ArabAir trust for player and computer
 * Remove strange reduction of flight cost in calculation of image change (was a disadvantage for computer player)
 * Computer player pays real price for plane upgrades
 * Fixed bug that prevented computer players from using routes in most games
@@ -210,7 +210,7 @@ You can see the instructions to build and run the project in [BUILDING.md](BUILD
 * Decryption of data files with the run argument "/savedata"
 * Option "OptionTicketPriceIncrement" to increase ticket price increment per click
 * Director's board now allow for more post-it
-* Added options "OptionRentOffice*" to customise the branch number available / day.
+* Added options "OptionRentOffice*" to customize the branch number available / day.
 * Director's board post-it system improved and allow for more cities (up to 7)
 
 ## Credits and Contributors

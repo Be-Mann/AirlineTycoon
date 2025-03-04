@@ -1582,10 +1582,10 @@ void PLAYER::NewDay() {
         ChangeMoney(Money * HabenZins / 100 / 365, 2001, "");
     }
     if (Money < 0) {
-        ChangeMoney(Money * HabenZins / 100 / 365, 2002, "");
+        ChangeMoney(Money * SollZins / 100 / 365, 2002, "");
     }
     if (Credit > 0) {
-        ChangeMoney(-Money * SollZins / 100 / 365, 2000, "");
+        ChangeMoney(-Credit * SollZins / 100 / 365, 2000, "");
     }
     if (CalcSecurityCosts() > 0) {
         ChangeMoney(-CalcSecurityCosts(), 3503, "");
@@ -4147,11 +4147,141 @@ void PLAYER::RobotExecuteAction() {
 
                 // Normale Aufträge:
                 for (c = 0; c < SLONG(Planes.AnzEntries()); c++) {
-                    if (Planes.IsInAlbum(c) != 0) {
+                    if (Planes.IsInAlbum(c) == 0) {
+                        continue;
+                    }
+                    SLONG d = 0;
+                    SLONG e = 0;
+                    SLONG VonCity = 0;
+                    SLONG VonZeit = 0;
+
+                    for (level = 0; level <= 2; level++) {
+                        VonCity = Planes[c].Flugplan.StartCity;
+                        VonZeit = Sim.GetHour() + 2;
+
+                        if (Sim.Date == 0 && Sim.GetHour() == 9) {
+                            VonZeit = Sim.GetHour() + 2 + PlayerNum / 2;
+                        }
+
+                        for (d = Planes[c].Flugplan.Flug.AnzEntries() - 1; d >= 0; d--) {
+                            if (Planes[c].Flugplan.Flug[d].ObjectType != 0) {
+                                VonCity = Planes[c].Flugplan.Flug[d].NachCity;
+                                VonZeit = Planes[c].Flugplan.Flug[d].Landezeit + 1;
+                                VonZeit += (Planes[c].Flugplan.Flug[d].Landedate - Sim.Date) * 24;
+                                break;
+                            }
+                        }
+
+                        if (VonZeit < Sim.GetHour() + 2) {
+                            VonZeit = Sim.GetHour() + 2;
+                        }
+
+                        if (VonZeit < 0 || VonZeit >= 23 + 24) {
+                            continue;
+                        }
+                        if (level == 0 || level == 1) {
+                            for (e = qAuftraege.AnzEntries() - 1; e >= 0; e--) {
+                                if ((qAuftraege[e].Praemie <= 0) || qAuftraege[e].VonCity != ULONG(VonCity)) {
+                                    continue;
+                                }
+                                if (RobotUse(ROBOT_USE_SHORTFLIGHTS) && Planes.GetNumUsed() == 4 &&
+                                    (Cities.CalcDistance(qAuftraege[e].VonCity, qAuftraege[e].NachCity) > 3000000 || qAuftraege[e].Personen <= 90)) {
+                                    continue;
+                                }
+
+                                if (RobotUse(ROBOT_TRY_TO_RESPECT_RULES)) {
+                                    const auto &qPlane = Planes[c];
+                                    const auto &qAuftrag = qAuftraege[e];
+                                    if (qPlane.ptReichweite * 1000 < Cities.CalcDistance(qAuftrag.VonCity, qAuftrag.NachCity)) {
+                                        continue;
+                                    }
+                                    if (qPlane.ptPassagiere < static_cast<SLONG>(qAuftrag.Personen)) {
+                                        continue;
+                                    }
+                                }
+
+                                SLONG Cost = ((CalculateFlightCost(VonCity, qAuftraege[e].VonCity, 8000, 700, -1)) + 99) / 100 * 100;
+                                if (Cost <= qAuftraege[e].Praemie * 8 / 10) {
+                                    SLONG ObjectId = -1;
+                                    GameMechanic::takeInternationalFlightJob(*this, n, e, ObjectId);
+
+                                    NumOrderFlightsToday2++;
+
+                                    GameMechanic::planFlightJob(*this, c, ObjectId, Sim.Date + VonZeit / 24, VonZeit % 24);
+                                    DelayFlightsIfNecessary();
+                                    break;
+                                }
+                            }
+                        } else if (level == 2) {
+                            SLONG Min = 999999999;
+                            SLONG MinE = -1;
+
+                            for (e = qAuftraege.AnzEntries() - 1; e >= 0; e--) {
+                                if ((qAuftraege[e].Praemie <= 0) ||
+                                    VonZeit + Cities.CalcFlugdauer(VonCity, qAuftraege[e].VonCity, Planes[c].ptGeschwindigkeit) >= 23 + 24) {
+                                    continue;
+                                }
+                                // VonZeit+Cities.CalcFlugdauer (VonCity, qAuftraege[e].VonCity,
+                                // PlaneTypes[Planes[c].TypeId].Geschwindigkeit)<23+24)
+                                if (Cities.CalcDistance(VonCity, qAuftraege[e].VonCity) < Min) {
+                                    if (RobotUse(ROBOT_USE_SHORTFLIGHTS) && Planes.GetNumUsed() == 4 &&
+                                        (Cities.CalcDistance(qAuftraege[e].VonCity, qAuftraege[e].NachCity) > 3000000 || qAuftraege[e].Personen <= 90)) {
+                                        continue;
+                                    }
+
+                                    if (RobotUse(ROBOT_TRY_TO_RESPECT_RULES)) {
+                                        const auto &qPlane = Planes[c];
+                                        const auto &qAuftrag = qAuftraege[e];
+                                        if (qPlane.ptReichweite * 1000 < Cities.CalcDistance(qAuftrag.VonCity, qAuftrag.NachCity)) {
+                                            continue;
+                                        }
+                                        if (qPlane.ptPassagiere < static_cast<SLONG>(qAuftrag.Personen)) {
+                                            continue;
+                                        }
+                                    }
+
+                                    Min = Cities.CalcDistance(VonCity, qAuftraege[e].VonCity);
+                                    MinE = e;
+                                }
+                            }
+
+                            if (MinE != -1 && Min < 9000000 && (Min < 5000000 || VonZeit < 34) && (Min < 3000000 || VonZeit < 24)) {
+                                e = MinE;
+
+                                SLONG Cost = ((CalculateFlightCost(VonCity, qAuftraege[e].VonCity, 8000, 700, -1)) + 99) / 100 * 100;
+                                if (Cost <= qAuftraege[e].Praemie) {
+                                    SLONG ObjectId = -1;
+                                    GameMechanic::takeInternationalFlightJob(*this, n, e, ObjectId);
+
+                                    NumOrderFlightsToday2++;
+
+                                    GameMechanic::planFlightJob(*this, c, ObjectId, Sim.Date + VonZeit / 24, VonZeit % 24);
+                                    DelayFlightsIfNecessary();
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ANFANG FRACHTAUFTRÄGE
+                if ((DoRoutes == 0) && !(RobotUse(ROBOT_USE_SHORTFLIGHTS) && Planes.GetNumUsed() == 4)) {
+                    SLONG Bewertungsbonus = 0;
+                    if (RobotUse(ROBOT_USE_MUCH_FRACHT) && RobotUse(ROBOT_USE_MUCH_FRACHT_BONUS)) {
+                        Bewertungsbonus = 150000;
+                    }
+
+                    for (c = 0; c < SLONG(Planes.AnzEntries()); c++) {
+                        if (Planes.IsInAlbum(c) == 0) {
+                            continue;
+                        }
                         SLONG d = 0;
                         SLONG e = 0;
                         SLONG VonCity = 0;
                         SLONG VonZeit = 0;
+
+                        if ((Planes[c].ptPassagiere / 10) <= 0) {
+                            continue;
+                        }
 
                         for (level = 0; level <= 2; level++) {
                             VonCity = Planes[c].Flugplan.StartCity;
@@ -4174,194 +4304,112 @@ void PLAYER::RobotExecuteAction() {
                                 VonZeit = Sim.GetHour() + 2;
                             }
 
-                            if (VonZeit >= 0 && VonZeit < 23 + 24) {
-                                if (level == 0 || level == 1) {
-                                    for (e = qAuftraege.AnzEntries() - 1; e >= 0; e--) {
-                                        if ((qAuftraege[e].Praemie > 0) && qAuftraege[e].VonCity == ULONG(VonCity)) {
-                                            if (RobotUse(ROBOT_USE_SHORTFLIGHTS) && Planes.GetNumUsed() == 4 &&
-                                                (Cities.CalcDistance(qAuftraege[e].VonCity, qAuftraege[e].NachCity) > 3000000 ||
-                                                 qAuftraege[e].Personen <= 90)) {
-                                                continue;
-                                            }
+                            if (VonZeit < 0 || VonZeit >= 23 + 24 + 24) {
+                                continue;
+                            }
+                            if (level == 0 || level == 1) {
+                                for (e = qFrachten.AnzEntries() - 1; e >= 0; e--) {
+                                    CFracht &qFracht = qFrachten[e];
 
-                                            SLONG Cost = ((CalculateFlightCost(VonCity, qAuftraege[e].VonCity, 8000, 700, -1)) + 99) / 100 * 100;
-                                            if (Cost <= qAuftraege[e].Praemie * 8 / 10) {
-                                                SLONG ObjectId = -1;
-                                                GameMechanic::takeInternationalFlightJob(*this, n, e, ObjectId);
+                                    if (qFracht.Praemie < 0 || qFracht.VonCity != ULONG(VonCity)) {
+                                        continue;
+                                    }
+                                    SLONG Cost = ((CalculateFlightCost(qFracht.VonCity, qFracht.NachCity, 8000, 700, -1)) + 99) / 100 * 100;
 
-                                                NumOrderFlightsToday2++;
-
-                                                GameMechanic::planFlightJob(*this, c, ObjectId, Sim.Date + VonZeit / 24, VonZeit % 24);
-                                                DelayFlightsIfNecessary();
-                                                break;
-                                            }
+                                    if (RobotUse(ROBOT_TRY_TO_RESPECT_RULES)) {
+                                        const auto &qPlane = Planes[c];
+                                        if (qPlane.ptReichweite * 1000 < Cities.CalcDistance(qFracht.VonCity, qFracht.NachCity)) {
+                                            continue;
                                         }
                                     }
-                                } else if (level == 2) {
+
+                                    // Multiplikator, weil wir mehrere Flüge durchführen müssen:
+                                    int trips = (qFracht.Tons / (Planes[c].ptPassagiere / 10) + 1);
+                                    if (trips >= 4) {
+                                        continue;
+                                    }
+
+                                    Cost = Cost * (2 * trips - 1);
+                                    if ((Cost > qFracht.Praemie * 8 / 10 + Bewertungsbonus) && !(RobotUse(ROBOT_USE_FREE_FRACHT) && qFracht.Praemie == 0)) {
+                                        continue;
+                                    }
+
+                                    SLONG ObjectId = -1;
+                                    GameMechanic::takeInternationalFreightJob(*this, n, e, ObjectId);
+
+                                    SLONG bailout = 10;
+                                    while (Frachten[ObjectId].TonsOpen > 0 && (bailout-- > 0)) {
+                                        if (!GameMechanic::planFreightJob(*this, c, ObjectId, Sim.Date + VonZeit / 24, VonZeit % 24)) {
+                                            break;
+                                        }
+                                        DelayFlightsIfNecessary();
+
+                                        Sim.Players.CheckFlighplans();
+                                    }
+
+                                    break;
+                                }
+                            } else if (level == 2) {
+                                SLONG MinMin = 0; // Min muß mindestens so groß sein
+
+                                while (true) {
                                     SLONG Min = 999999999;
                                     SLONG MinE = -1;
 
-                                    for (e = qAuftraege.AnzEntries() - 1; e >= 0; e--) {
-                                        if ((qAuftraege[e].Praemie > 0) &&
-                                            VonZeit + Cities.CalcFlugdauer(VonCity, qAuftraege[e].VonCity, Planes[c].ptGeschwindigkeit) < 23 + 24) {
-                                            // VonZeit+Cities.CalcFlugdauer (VonCity, qAuftraege[e].VonCity,
-                                            // PlaneTypes[Planes[c].TypeId].Geschwindigkeit)<23+24)
-                                            if (Cities.CalcDistance(VonCity, qAuftraege[e].VonCity) < Min) {
-                                                if (RobotUse(ROBOT_USE_SHORTFLIGHTS) && Planes.GetNumUsed() == 4 &&
-                                                    (Cities.CalcDistance(qAuftraege[e].VonCity, qAuftraege[e].NachCity) > 3000000 ||
-                                                     qAuftraege[e].Personen <= 90)) {
-                                                    continue;
-                                                }
-
-                                                Min = Cities.CalcDistance(VonCity, qAuftraege[e].VonCity);
+                                    for (e = qFrachten.AnzEntries() - 1; e >= 0; e--) {
+                                        if (qFrachten[e].Praemie >= 0 &&
+                                            VonZeit + Cities.CalcFlugdauer(VonCity, qFrachten[e].VonCity, Planes[c].ptGeschwindigkeit) < 23 + 24) {
+                                            if (Cities.CalcDistance(VonCity, qFrachten[e].VonCity) < Min &&
+                                                Cities.CalcDistance(VonCity, qFrachten[e].VonCity) > MinMin) {
+                                                Min = Cities.CalcDistance(VonCity, qFrachten[e].VonCity);
                                                 MinE = e;
                                             }
                                         }
                                     }
 
-                                    if (MinE != -1 && Min < 9000000 && (Min < 5000000 || VonZeit < 34) && (Min < 3000000 || VonZeit < 24)) {
-                                        e = MinE;
-
-                                        SLONG Cost = ((CalculateFlightCost(VonCity, qAuftraege[e].VonCity, 8000, 700, -1)) + 99) / 100 * 100;
-                                        if (Cost <= qAuftraege[e].Praemie) {
-                                            SLONG ObjectId = -1;
-                                            GameMechanic::takeInternationalFlightJob(*this, n, e, ObjectId);
-
-                                            NumOrderFlightsToday2++;
-
-                                            GameMechanic::planFlightJob(*this, c, ObjectId, Sim.Date + VonZeit / 24, VonZeit % 24);
-                                            DelayFlightsIfNecessary();
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // ANFANG FRACHTAUFTRÄGE
-                if ((DoRoutes == 0) && !(RobotUse(ROBOT_USE_SHORTFLIGHTS) && Planes.GetNumUsed() == 4)) {
-                    SLONG Bewertungsbonus = 0;
-                    if (RobotUse(ROBOT_USE_MUCH_FRACHT) && RobotUse(ROBOT_USE_MUCH_FRACHT_BONUS)) {
-                        Bewertungsbonus = 150000;
-                    }
-
-                    for (c = 0; c < SLONG(Planes.AnzEntries()); c++) {
-                        if (Planes.IsInAlbum(c) != 0) {
-                            SLONG d = 0;
-                            SLONG e = 0;
-                            SLONG VonCity = 0;
-                            SLONG VonZeit = 0;
-
-                            if ((Planes[c].ptPassagiere / 10) <= 0) {
-                                continue;
-                            }
-
-                            for (level = 0; level <= 2; level++) {
-                                VonCity = Planes[c].Flugplan.StartCity;
-                                VonZeit = Sim.GetHour() + 2;
-
-                                if (Sim.Date == 0 && Sim.GetHour() == 9) {
-                                    VonZeit = Sim.GetHour() + 2 + PlayerNum / 2;
-                                }
-
-                                for (d = Planes[c].Flugplan.Flug.AnzEntries() - 1; d >= 0; d--) {
-                                    if (Planes[c].Flugplan.Flug[d].ObjectType != 0) {
-                                        VonCity = Planes[c].Flugplan.Flug[d].NachCity;
-                                        VonZeit = Planes[c].Flugplan.Flug[d].Landezeit + 1;
-                                        VonZeit += (Planes[c].Flugplan.Flug[d].Landedate - Sim.Date) * 24;
+                                    if (MinE == -1) {
                                         break;
                                     }
-                                }
+                                    MinMin = Min;
 
-                                if (VonZeit < Sim.GetHour() + 2) {
-                                    VonZeit = Sim.GetHour() + 2;
-                                }
+                                    if (MinE != -1 && Min < 15000000 && (Min < 6000000 || VonZeit < 34 + 24) && (Min < 3000000 || VonZeit < 24 + 24)) {
+                                        e = MinE;
 
-                                if (VonZeit >= 0 && VonZeit < 23 + 24 + 24) {
-                                    if (level == 0 || level == 1) {
-                                        for (e = qFrachten.AnzEntries() - 1; e >= 0; e--) {
-                                            CFracht &qFracht = qFrachten[e];
+                                        CFracht &qFracht = qFrachten[e];
 
-                                            if (qFracht.Praemie >= 0 && qFracht.VonCity == ULONG(VonCity)) {
-                                                SLONG Cost = ((CalculateFlightCost(qFracht.VonCity, qFracht.NachCity, 8000, 700, -1)) + 99) / 100 * 100;
+                                        SLONG Cost = ((CalculateFlightCost(qFracht.VonCity, qFracht.NachCity, 8000, 700, -1)) + 99) / 100 * 100;
 
-                                                // Multiplikator, weil wir mehrere Flüge durchführen müssen:
-                                                int trips = (qFracht.Tons / (Planes[c].ptPassagiere / 10) + 1);
-                                                Cost = Cost * 2 * trips;
+                                        // Multiplikator, weil wir mehrere Flüge durchführen müssen:
+                                        int trips = (qFracht.Tons / (Planes[c].ptPassagiere / 10) + 1);
+                                        if (trips >= 4) {
+                                            continue;
+                                        }
 
-                                                if ((trips < 4) && ((Cost <= qFracht.Praemie * 8 / 10 + Bewertungsbonus) ||
-                                                                    (RobotUse(ROBOT_USE_FREE_FRACHT) && qFracht.Praemie == 0))) {
-                                                    SLONG ObjectId = -1;
-                                                    GameMechanic::takeInternationalFreightJob(*this, n, e, ObjectId);
+                                        Cost = Cost * (2 * trips - 1);
+                                        // Anflug:
+                                        Cost += ((CalculateFlightCost(VonCity, qFracht.VonCity, 8000, 700, -1)) + 99) / 100 * 100;
+                                        if ((Cost > qFracht.Praemie + Bewertungsbonus) && !(RobotUse(ROBOT_USE_FREE_FRACHT) && qFracht.Praemie == 0)) {
+                                            continue;
+                                        }
 
-                                                    SLONG bailout = 10;
-                                                    while (Frachten[ObjectId].TonsOpen > 0 && (bailout-- > 0)) {
-                                                        if (!GameMechanic::planFreightJob(*this, c, ObjectId, Sim.Date + VonZeit / 24, VonZeit % 24)) {
-                                                            break;
-                                                        }
-                                                        DelayFlightsIfNecessary();
-
-                                                        Sim.Players.CheckFlighplans();
-                                                    }
-
-                                                    break;
-                                                }
+                                        if (RobotUse(ROBOT_TRY_TO_RESPECT_RULES)) {
+                                            const auto &qPlane = Planes[c];
+                                            if (qPlane.ptReichweite * 1000 < Cities.CalcDistance(qFracht.VonCity, qFracht.NachCity)) {
+                                                continue;
                                             }
                                         }
-                                    } else if (level == 2) {
-                                        SLONG MinMin = 0; // Min muß mindestens so groß sein
 
-                                        while (true) {
-                                            SLONG Min = 999999999;
-                                            SLONG MinE = -1;
+                                        SLONG ObjectId = -1;
+                                        GameMechanic::takeInternationalFreightJob(*this, n, e, ObjectId);
 
-                                            for (e = qFrachten.AnzEntries() - 1; e >= 0; e--) {
-                                                if (qFrachten[e].Praemie >= 0 &&
-                                                    VonZeit + Cities.CalcFlugdauer(VonCity, qFrachten[e].VonCity, Planes[c].ptGeschwindigkeit) < 23 + 24) {
-                                                    if (Cities.CalcDistance(VonCity, qFrachten[e].VonCity) < Min &&
-                                                        Cities.CalcDistance(VonCity, qFrachten[e].VonCity) > MinMin) {
-                                                        Min = Cities.CalcDistance(VonCity, qFrachten[e].VonCity);
-                                                        MinE = e;
-                                                    }
-                                                }
-                                            }
-
-                                            if (MinE == -1) {
+                                        SLONG bailout = 10;
+                                        while (Frachten[ObjectId].TonsOpen > 0 && (bailout-- > 0)) {
+                                            if (!GameMechanic::planFreightJob(*this, c, ObjectId, Sim.Date + VonZeit / 24, VonZeit % 24)) {
                                                 break;
                                             }
-                                            MinMin = Min;
+                                            DelayFlightsIfNecessary();
 
-                                            if (MinE != -1 && Min < 15000000 && (Min < 6000000 || VonZeit < 34 + 24) && (Min < 3000000 || VonZeit < 24 + 24)) {
-                                                e = MinE;
-
-                                                CFracht &qFracht = qFrachten[e];
-
-                                                SLONG Cost = ((CalculateFlightCost(qFracht.VonCity, qFracht.NachCity, 8000, 700, -1)) + 99) / 100 * 100;
-
-                                                // Multiplikator, weil wir mehrere Flüge durchführen müssen:
-                                                int trips = (qFracht.Tons / (Planes[c].ptPassagiere / 10) + 1);
-                                                Cost = Cost * trips;
-
-                                                // Anflug:
-                                                Cost += ((CalculateFlightCost(VonCity, qFracht.VonCity, 8000, 700, -1)) + 99) / 100 * 100;
-
-                                                if ((trips < 4) && ((Cost <= qFracht.Praemie + Bewertungsbonus) ||
-                                                                    (RobotUse(ROBOT_USE_FREE_FRACHT) && qFracht.Praemie == 0))) {
-                                                    SLONG ObjectId = -1;
-                                                    GameMechanic::takeInternationalFreightJob(*this, n, e, ObjectId);
-
-                                                    SLONG bailout = 10;
-                                                    while (Frachten[ObjectId].TonsOpen > 0 && (bailout-- > 0)) {
-                                                        if (!GameMechanic::planFreightJob(*this, c, ObjectId, Sim.Date + VonZeit / 24, VonZeit % 24)) {
-                                                            break;
-                                                        }
-                                                        DelayFlightsIfNecessary();
-
-                                                        Sim.Players.CheckFlighplans();
-                                                    }
-                                                }
-                                            }
+                                            Sim.Players.CheckFlighplans();
                                         }
                                     }
                                 }
@@ -4947,101 +4995,125 @@ void PLAYER::RobotExecuteAction() {
             NetGenericAsync(17000 + Sim.Date * 100, PlayerNum, PlayerNum);
             NetGenericAsync(17010 + Sim.Date * 100, Planes.AnzEntries(), PlayerNum);
             for (c = 0; c < SLONG(Planes.AnzEntries()); c++) {
-                if (Planes.IsInAlbum(c) != 0) {
-                    SLONG d = 0;
-                    SLONG e = 0;
-                    SLONG VonCity = 0;
-                    SLONG VonZeit = 0;
+                if (Planes.IsInAlbum(c) == 0) {
+                    continue;
+                }
+                SLONG d = 0;
+                SLONG e = 0;
+                SLONG VonCity = 0;
+                SLONG VonZeit = 0;
 
-                    NetGenericAsync(17001 + Sim.Date * 100, c, PlayerNum);
-                    for (level = 0; level <= 2; level++) {
-                        VonCity = Planes[c].Flugplan.StartCity;
-                        VonZeit = Sim.GetHour() + 2;
+                NetGenericAsync(17001 + Sim.Date * 100, c, PlayerNum);
+                for (level = 0; level <= 2; level++) {
+                    VonCity = Planes[c].Flugplan.StartCity;
+                    VonZeit = Sim.GetHour() + 2;
 
-                        if (Sim.Date == 0 && Sim.GetHour() == 9) {
-                            VonZeit = Sim.GetHour() + 2 + PlayerNum / 2;
+                    if (Sim.Date == 0 && Sim.GetHour() == 9) {
+                        VonZeit = Sim.GetHour() + 2 + PlayerNum / 2;
+                    }
+
+                    for (d = Planes[c].Flugplan.Flug.AnzEntries() - 1; d >= 0; d--) {
+                        if (Planes[c].Flugplan.Flug[d].ObjectType != 0) {
+                            VonCity = Planes[c].Flugplan.Flug[d].NachCity;
+                            VonZeit = Planes[c].Flugplan.Flug[d].Landezeit + 1;
+                            VonZeit += (Planes[c].Flugplan.Flug[d].Landedate - Sim.Date) * 24;
+                            break;
                         }
+                    }
 
-                        for (d = Planes[c].Flugplan.Flug.AnzEntries() - 1; d >= 0; d--) {
-                            if (Planes[c].Flugplan.Flug[d].ObjectType != 0) {
-                                VonCity = Planes[c].Flugplan.Flug[d].NachCity;
-                                VonZeit = Planes[c].Flugplan.Flug[d].Landezeit + 1;
-                                VonZeit += (Planes[c].Flugplan.Flug[d].Landedate - Sim.Date) * 24;
-                                break;
+                    if (VonZeit < Sim.GetHour() + 2) {
+                        VonZeit = Sim.GetHour() + 2;
+                    }
+
+                    NetGenericAsync(17002 + Sim.Date * 100, VonZeit, PlayerNum);
+                    if (VonZeit < 0 || VonZeit >= 23 + 24) {
+                        continue;
+                    }
+                    if (level == 0 || level == 1) {
+                        for (e = LastMinuteAuftraege.AnzEntries() - 1; e >= 0; e--) {
+                            if ((LastMinuteAuftraege[e].Praemie > 0) && LastMinuteAuftraege[e].VonCity == ULONG(VonCity)) {
+                                NetGenericAsync(17003 + Sim.Date * 100, e, PlayerNum);
+                                if (RobotUse(ROBOT_USE_SHORTFLIGHTS) && Planes.GetNumUsed() == 4 &&
+                                    (Cities.CalcDistance(LastMinuteAuftraege[e].VonCity, LastMinuteAuftraege[e].NachCity) > 3000000 ||
+                                     LastMinuteAuftraege[e].Personen <= 90)) {
+                                    continue;
+                                }
+
+                                if (RobotUse(ROBOT_TRY_TO_RESPECT_RULES)) {
+                                    const auto &qPlane = Planes[c];
+                                    const auto &qAuftrag = LastMinuteAuftraege[e];
+                                    if (qPlane.ptReichweite * 1000 < Cities.CalcDistance(qAuftrag.VonCity, qAuftrag.NachCity)) {
+                                        continue;
+                                    }
+                                    if (qPlane.ptPassagiere < static_cast<SLONG>(qAuftrag.Personen)) {
+                                        continue;
+                                    }
+                                }
+
+                                SLONG Cost = ((CalculateFlightCost(VonCity, LastMinuteAuftraege[e].VonCity, 8000, 700, -1)) + 99) / 100 * 100;
+
+                                NetGenericAsync(17004 + Cost * 100, e, PlayerNum);
+                                if (Cost <= LastMinuteAuftraege[e].Praemie * 8 / 10) {
+                                    if ((!RobotUse(ROBOT_USE_TUTORIALLIMIT)) ||
+                                        Statistiken[STAT_AUFTRAEGE].GetAtPastDay(0) < Sim.Date * 2 + 3 + (PlayerNum & 1)) {
+                                        NetGenericAsync(17005 + Cost * 100, c + d + e + level, PlayerNum);
+
+                                        SLONG ObjectId = -1;
+                                        GameMechanic::takeLastMinuteJob(*this, e, ObjectId);
+
+                                        GameMechanic::planFlightJob(*this, c, ObjectId, Sim.Date + VonZeit / 24, VonZeit % 24);
+                                        DelayFlightsIfNecessary();
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    } else if (level == 2) {
+                        SLONG Min = 999999999;
+                        SLONG MinE = -1;
+
+                        for (e = LastMinuteAuftraege.AnzEntries() - 1; e >= 0; e--) {
+                            if ((LastMinuteAuftraege[e].Praemie <= 0) ||
+                                VonZeit + Cities.CalcFlugdauer(VonCity, LastMinuteAuftraege[e].VonCity, Planes[c].ptGeschwindigkeit) >= 23 + 24) {
+                                continue;
+                            }
+                            // VonZeit+Cities.CalcFlugdauer (VonCity, LastMinuteAuftraege[e].VonCity,
+                            // PlaneTypes[Planes[c].TypeId].Geschwindigkeit)<23+24)
+                            if (Cities.CalcDistance(VonCity, LastMinuteAuftraege[e].VonCity) < Min) {
+                                if (RobotUse(ROBOT_USE_SHORTFLIGHTS) && Planes.GetNumUsed() == 4 &&
+                                    (Cities.CalcDistance(LastMinuteAuftraege[e].VonCity, LastMinuteAuftraege[e].NachCity) > 3000000 ||
+                                     LastMinuteAuftraege[e].Personen <= 90)) {
+                                    continue;
+                                }
+
+                                if (RobotUse(ROBOT_TRY_TO_RESPECT_RULES)) {
+                                    const auto &qPlane = Planes[c];
+                                    const auto &qAuftrag = LastMinuteAuftraege[e];
+                                    if (qPlane.ptReichweite * 1000 < Cities.CalcDistance(qAuftrag.VonCity, qAuftrag.NachCity)) {
+                                        continue;
+                                    }
+                                    if (qPlane.ptPassagiere < static_cast<SLONG>(qAuftrag.Personen)) {
+                                        continue;
+                                    }
+                                }
+
+                                Min = Cities.CalcDistance(VonCity, LastMinuteAuftraege[e].VonCity);
+                                MinE = e;
                             }
                         }
 
-                        if (VonZeit < Sim.GetHour() + 2) {
-                            VonZeit = Sim.GetHour() + 2;
-                        }
+                        if (MinE != -1 && Min < 15000000 && (Min < 6000000 || VonZeit < 34) && (Min < 4000000 || VonZeit < 24)) {
+                            e = MinE;
 
-                        NetGenericAsync(17002 + Sim.Date * 100, VonZeit, PlayerNum);
-                        if (VonZeit >= 0 && VonZeit < 23 + 24) {
-                            if (level == 0 || level == 1) {
-                                for (e = LastMinuteAuftraege.AnzEntries() - 1; e >= 0; e--) {
-                                    if ((LastMinuteAuftraege[e].Praemie > 0) && LastMinuteAuftraege[e].VonCity == ULONG(VonCity)) {
-                                        NetGenericAsync(17003 + Sim.Date * 100, e, PlayerNum);
-                                        if (RobotUse(ROBOT_USE_SHORTFLIGHTS) && Planes.GetNumUsed() == 4 &&
-                                            (Cities.CalcDistance(LastMinuteAuftraege[e].VonCity, LastMinuteAuftraege[e].NachCity) > 3000000 ||
-                                             LastMinuteAuftraege[e].Personen <= 90)) {
-                                            continue;
-                                        }
+                            SLONG Cost = ((CalculateFlightCost(VonCity, LastMinuteAuftraege[e].VonCity, 8000, 700, -1)) + 99) / 100 * 100;
+                            if (Cost <= LastMinuteAuftraege[e].Praemie) {
+                                if ((!RobotUse(ROBOT_USE_TUTORIALLIMIT)) || Statistiken[STAT_AUFTRAEGE].GetAtPastDay(0) < Sim.Date * 2 + 3 + (PlayerNum & 1)) {
 
-                                        SLONG Cost = ((CalculateFlightCost(VonCity, LastMinuteAuftraege[e].VonCity, 8000, 700, -1)) + 99) / 100 * 100;
+                                    SLONG ObjectId = -1;
+                                    GameMechanic::takeLastMinuteJob(*this, e, ObjectId);
 
-                                        NetGenericAsync(17004 + Cost * 100, e, PlayerNum);
-                                        if (Cost <= LastMinuteAuftraege[e].Praemie * 8 / 10) {
-                                            if ((!RobotUse(ROBOT_USE_TUTORIALLIMIT)) ||
-                                                Statistiken[STAT_AUFTRAEGE].GetAtPastDay(0) < Sim.Date * 2 + 3 + (PlayerNum & 1)) {
-                                                NetGenericAsync(17005 + Cost * 100, c + d + e + level, PlayerNum);
-
-                                                SLONG ObjectId = -1;
-                                                GameMechanic::takeLastMinuteJob(*this, e, ObjectId);
-
-                                                GameMechanic::planFlightJob(*this, c, ObjectId, Sim.Date + VonZeit / 24, VonZeit % 24);
-                                                DelayFlightsIfNecessary();
-                                                break;
-                                            }
-                                        }
-                                    }
-                                }
-                            } else if (level == 2) {
-                                SLONG Min = 999999999;
-                                SLONG MinE = -1;
-
-                                for (e = LastMinuteAuftraege.AnzEntries() - 1; e >= 0; e--) {
-                                    if ((LastMinuteAuftraege[e].Praemie > 0) &&
-                                        VonZeit + Cities.CalcFlugdauer(VonCity, LastMinuteAuftraege[e].VonCity, Planes[c].ptGeschwindigkeit) < 23 + 24) {
-                                        // VonZeit+Cities.CalcFlugdauer (VonCity, LastMinuteAuftraege[e].VonCity,
-                                        // PlaneTypes[Planes[c].TypeId].Geschwindigkeit)<23+24)
-                                        if (Cities.CalcDistance(VonCity, LastMinuteAuftraege[e].VonCity) < Min) {
-                                            if (RobotUse(ROBOT_USE_SHORTFLIGHTS) && Planes.GetNumUsed() == 4 &&
-                                                (Cities.CalcDistance(LastMinuteAuftraege[e].VonCity, LastMinuteAuftraege[e].NachCity) > 3000000 ||
-                                                 LastMinuteAuftraege[e].Personen <= 90)) {
-                                                continue;
-                                            }
-
-                                            Min = Cities.CalcDistance(VonCity, LastMinuteAuftraege[e].VonCity);
-                                            MinE = e;
-                                        }
-                                    }
-                                }
-
-                                if (MinE != -1 && Min < 15000000 && (Min < 6000000 || VonZeit < 34) && (Min < 4000000 || VonZeit < 24)) {
-                                    e = MinE;
-
-                                    SLONG Cost = ((CalculateFlightCost(VonCity, LastMinuteAuftraege[e].VonCity, 8000, 700, -1)) + 99) / 100 * 100;
-                                    if (Cost <= LastMinuteAuftraege[e].Praemie) {
-                                        if ((!RobotUse(ROBOT_USE_TUTORIALLIMIT)) ||
-                                            Statistiken[STAT_AUFTRAEGE].GetAtPastDay(0) < Sim.Date * 2 + 3 + (PlayerNum & 1)) {
-
-                                            SLONG ObjectId = -1;
-                                            GameMechanic::takeLastMinuteJob(*this, e, ObjectId);
-
-                                            GameMechanic::planFlightJob(*this, c, ObjectId, Sim.Date + VonZeit / 24, VonZeit % 24);
-                                            DelayFlightsIfNecessary();
-                                        }
-                                    }
+                                    GameMechanic::planFlightJob(*this, c, ObjectId, Sim.Date + VonZeit / 24, VonZeit % 24);
+                                    DelayFlightsIfNecessary();
                                 }
                             }
                         }
@@ -5059,99 +5131,123 @@ void PLAYER::RobotExecuteAction() {
         if (DoRoutes == 0) {
             ReisebueroAuftraege.RefillForReisebuero();
             for (c = 0; c < SLONG(Planes.AnzEntries()); c++) {
-                if (Planes.IsInAlbum(c) != 0) {
-                    SLONG d = 0;
-                    SLONG e = 0;
-                    SLONG VonCity = 0;
-                    SLONG VonZeit = 0;
+                if (Planes.IsInAlbum(c) == 0) {
+                    continue;
+                }
+                SLONG d = 0;
+                SLONG e = 0;
+                SLONG VonCity = 0;
+                SLONG VonZeit = 0;
 
-                    for (level = 0; level <= 2; level++) {
-                        VonCity = Planes[c].Flugplan.StartCity;
-                        VonZeit = Sim.GetHour() + 2;
+                for (level = 0; level <= 2; level++) {
+                    VonCity = Planes[c].Flugplan.StartCity;
+                    VonZeit = Sim.GetHour() + 2;
 
-                        if (Sim.Date == 0 && Sim.GetHour() == 9) {
-                            VonZeit = Sim.GetHour() + 2 + PlayerNum / 2;
+                    if (Sim.Date == 0 && Sim.GetHour() == 9) {
+                        VonZeit = Sim.GetHour() + 2 + PlayerNum / 2;
+                    }
+
+                    for (d = Planes[c].Flugplan.Flug.AnzEntries() - 1; d >= 0; d--) {
+                        if (Planes[c].Flugplan.Flug[d].ObjectType != 0) {
+                            VonCity = Planes[c].Flugplan.Flug[d].NachCity;
+                            VonZeit = Planes[c].Flugplan.Flug[d].Landezeit + 1;
+                            VonZeit += (Planes[c].Flugplan.Flug[d].Landedate - Sim.Date) * 24;
+                            break;
                         }
+                    }
 
-                        for (d = Planes[c].Flugplan.Flug.AnzEntries() - 1; d >= 0; d--) {
-                            if (Planes[c].Flugplan.Flug[d].ObjectType != 0) {
-                                VonCity = Planes[c].Flugplan.Flug[d].NachCity;
-                                VonZeit = Planes[c].Flugplan.Flug[d].Landezeit + 1;
-                                VonZeit += (Planes[c].Flugplan.Flug[d].Landedate - Sim.Date) * 24;
-                                break;
+                    if (VonZeit < Sim.GetHour() + 2) {
+                        VonZeit = Sim.GetHour() + 2;
+                    }
+
+                    if (VonZeit < 0 || VonZeit >= 23 + 24 + 24) {
+                        continue;
+                    }
+                    if (level == 0 || level == 1) {
+                        for (e = ReisebueroAuftraege.AnzEntries() - 1; e >= 0; e--) {
+                            if ((ReisebueroAuftraege[e].Praemie <= 0) || ReisebueroAuftraege[e].VonCity != ULONG(VonCity)) {
+                                continue;
+                            }
+                            if (RobotUse(ROBOT_USE_SHORTFLIGHTS) && Planes.GetNumUsed() == 4 &&
+                                (Cities.CalcDistance(ReisebueroAuftraege[e].VonCity, ReisebueroAuftraege[e].NachCity) > 3000000 ||
+                                 ReisebueroAuftraege[e].Personen <= 90)) {
+                                continue;
+                            }
+
+                            if (RobotUse(ROBOT_TRY_TO_RESPECT_RULES)) {
+                                const auto &qPlane = Planes[c];
+                                const auto &qAuftrag = ReisebueroAuftraege[e];
+                                if (qPlane.ptReichweite * 1000 < Cities.CalcDistance(qAuftrag.VonCity, qAuftrag.NachCity)) {
+                                    continue;
+                                }
+                                if (qPlane.ptPassagiere < static_cast<SLONG>(qAuftrag.Personen)) {
+                                    continue;
+                                }
+                            }
+
+                            SLONG Cost = ((CalculateFlightCost(VonCity, ReisebueroAuftraege[e].VonCity, 8000, 700, -1)) + 99) / 100 * 100;
+                            if (Cost <= ReisebueroAuftraege[e].Praemie * 8 / 10) {
+                                if ((!RobotUse(ROBOT_USE_TUTORIALLIMIT)) || Statistiken[STAT_AUFTRAEGE].GetAtPastDay(0) < Sim.Date * 2 + 3 + (PlayerNum & 1)) {
+
+                                    SLONG ObjectId = -1;
+                                    GameMechanic::takeFlightJob(*this, e, ObjectId);
+
+                                    NumOrderFlightsToday2++;
+
+                                    GameMechanic::planFlightJob(*this, c, ObjectId, Sim.Date + VonZeit / 24, VonZeit % 24);
+                                    DelayFlightsIfNecessary();
+                                    break;
+                                }
+                            }
+                        }
+                    } else if (level == 2) {
+                        SLONG Min = 999999999;
+                        SLONG MinE = -1;
+
+                        for (e = ReisebueroAuftraege.AnzEntries() - 1; e >= 0; e--) {
+                            if ((ReisebueroAuftraege[e].Praemie <= 0) ||
+                                VonZeit + Cities.CalcFlugdauer(VonCity, ReisebueroAuftraege[e].VonCity, Planes[c].ptGeschwindigkeit) >= 23 + 24) {
+                                continue;
+                            }
+                            // VonZeit+Cities.CalcFlugdauer (VonCity, ReisebueroAuftraege[e].VonCity,
+                            // PlaneTypes[Planes[c].TypeId].Geschwindigkeit)<23+24)
+                            if (Cities.CalcDistance(VonCity, ReisebueroAuftraege[e].VonCity) < Min) {
+                                if (RobotUse(ROBOT_USE_SHORTFLIGHTS) && Planes.GetNumUsed() == 4 &&
+                                    (Cities.CalcDistance(ReisebueroAuftraege[e].VonCity, ReisebueroAuftraege[e].NachCity) > 3000000 ||
+                                     ReisebueroAuftraege[e].Personen <= 90)) {
+                                    continue;
+                                }
+
+                                if (RobotUse(ROBOT_TRY_TO_RESPECT_RULES)) {
+                                    const auto &qPlane = Planes[c];
+                                    const auto &qAuftrag = ReisebueroAuftraege[e];
+                                    if (qPlane.ptReichweite * 1000 < Cities.CalcDistance(qAuftrag.VonCity, qAuftrag.NachCity)) {
+                                        continue;
+                                    }
+                                    if (qPlane.ptPassagiere < static_cast<SLONG>(qAuftrag.Personen)) {
+                                        continue;
+                                    }
+                                }
+
+                                Min = Cities.CalcDistance(VonCity, ReisebueroAuftraege[e].VonCity);
+                                MinE = e;
                             }
                         }
 
-                        if (VonZeit < Sim.GetHour() + 2) {
-                            VonZeit = Sim.GetHour() + 2;
-                        }
+                        if (MinE != -1 && Min < 15000000 && (Min < 6000000 || VonZeit < 34) && (Min < 3000000 || VonZeit < 24)) {
+                            e = MinE;
 
-                        if (VonZeit >= 0 && VonZeit < 23 + 24 + 24) {
-                            if (level == 0 || level == 1) {
-                                for (e = ReisebueroAuftraege.AnzEntries() - 1; e >= 0; e--) {
-                                    if ((ReisebueroAuftraege[e].Praemie > 0) && ReisebueroAuftraege[e].VonCity == ULONG(VonCity)) {
-                                        if (RobotUse(ROBOT_USE_SHORTFLIGHTS) && Planes.GetNumUsed() == 4 &&
-                                            (Cities.CalcDistance(ReisebueroAuftraege[e].VonCity, ReisebueroAuftraege[e].NachCity) > 3000000 ||
-                                             ReisebueroAuftraege[e].Personen <= 90)) {
-                                            continue;
-                                        }
+                            SLONG Cost = ((CalculateFlightCost(VonCity, ReisebueroAuftraege[e].VonCity, 8000, 700, -1)) + 99) / 100 * 100;
+                            if (Cost <= ReisebueroAuftraege[e].Praemie) {
+                                if ((!RobotUse(ROBOT_USE_TUTORIALLIMIT)) || Statistiken[STAT_AUFTRAEGE].GetAtPastDay(0) < Sim.Date * 2 + 3 + (PlayerNum & 1)) {
 
-                                        SLONG Cost = ((CalculateFlightCost(VonCity, ReisebueroAuftraege[e].VonCity, 8000, 700, -1)) + 99) / 100 * 100;
-                                        if (Cost <= ReisebueroAuftraege[e].Praemie * 8 / 10) {
-                                            if ((!RobotUse(ROBOT_USE_TUTORIALLIMIT)) ||
-                                                Statistiken[STAT_AUFTRAEGE].GetAtPastDay(0) < Sim.Date * 2 + 3 + (PlayerNum & 1)) {
+                                    SLONG ObjectId = -1;
+                                    GameMechanic::takeFlightJob(*this, e, ObjectId);
 
-                                                SLONG ObjectId = -1;
-                                                GameMechanic::takeFlightJob(*this, e, ObjectId);
+                                    NumOrderFlightsToday2++;
 
-                                                NumOrderFlightsToday2++;
-
-                                                GameMechanic::planFlightJob(*this, c, ObjectId, Sim.Date + VonZeit / 24, VonZeit % 24);
-                                                DelayFlightsIfNecessary();
-                                                break;
-                                            }
-                                        }
-                                    }
-                                }
-                            } else if (level == 2) {
-                                SLONG Min = 999999999;
-                                SLONG MinE = -1;
-
-                                for (e = ReisebueroAuftraege.AnzEntries() - 1; e >= 0; e--) {
-                                    if ((ReisebueroAuftraege[e].Praemie > 0) &&
-                                        VonZeit + Cities.CalcFlugdauer(VonCity, ReisebueroAuftraege[e].VonCity, Planes[c].ptGeschwindigkeit) < 23 + 24) {
-                                        // VonZeit+Cities.CalcFlugdauer (VonCity, ReisebueroAuftraege[e].VonCity,
-                                        // PlaneTypes[Planes[c].TypeId].Geschwindigkeit)<23+24)
-                                        if (Cities.CalcDistance(VonCity, ReisebueroAuftraege[e].VonCity) < Min) {
-                                            if (RobotUse(ROBOT_USE_SHORTFLIGHTS) && Planes.GetNumUsed() == 4 &&
-                                                (Cities.CalcDistance(ReisebueroAuftraege[e].VonCity, ReisebueroAuftraege[e].NachCity) > 3000000 ||
-                                                 ReisebueroAuftraege[e].Personen <= 90)) {
-                                                continue;
-                                            }
-
-                                            Min = Cities.CalcDistance(VonCity, ReisebueroAuftraege[e].VonCity);
-                                            MinE = e;
-                                        }
-                                    }
-                                }
-
-                                if (MinE != -1 && Min < 15000000 && (Min < 6000000 || VonZeit < 34) && (Min < 3000000 || VonZeit < 24)) {
-                                    e = MinE;
-
-                                    SLONG Cost = ((CalculateFlightCost(VonCity, ReisebueroAuftraege[e].VonCity, 8000, 700, -1)) + 99) / 100 * 100;
-                                    if (Cost <= ReisebueroAuftraege[e].Praemie) {
-                                        if ((!RobotUse(ROBOT_USE_TUTORIALLIMIT)) ||
-                                            Statistiken[STAT_AUFTRAEGE].GetAtPastDay(0) < Sim.Date * 2 + 3 + (PlayerNum & 1)) {
-
-                                            SLONG ObjectId = -1;
-                                            GameMechanic::takeFlightJob(*this, e, ObjectId);
-
-                                            NumOrderFlightsToday2++;
-
-                                            GameMechanic::planFlightJob(*this, c, ObjectId, Sim.Date + VonZeit / 24, VonZeit % 24);
-                                            DelayFlightsIfNecessary();
-                                        }
-                                    }
+                                    GameMechanic::planFlightJob(*this, c, ObjectId, Sim.Date + VonZeit / 24, VonZeit % 24);
+                                    DelayFlightsIfNecessary();
                                 }
                             }
                         }
@@ -5178,124 +5274,146 @@ void PLAYER::RobotExecuteAction() {
 
             gFrachten.Refill();
             for (c = 0; c < SLONG(Planes.AnzEntries()); c++) {
-                if (Planes.IsInAlbum(c) != 0) {
-                    SLONG d = 0;
-                    SLONG e = 0;
-                    SLONG VonCity = 0;
-                    SLONG VonZeit = 0;
+                if (Planes.IsInAlbum(c) == 0) {
+                    continue;
+                }
+                SLONG d = 0;
+                SLONG e = 0;
+                SLONG VonCity = 0;
+                SLONG VonZeit = 0;
 
-                    if ((Planes[c].ptPassagiere / 10) <= 0) {
-                        continue;
+                if ((Planes[c].ptPassagiere / 10) <= 0) {
+                    continue;
+                }
+
+                for (level = 0; level <= 2; level++) {
+                    VonCity = Planes[c].Flugplan.StartCity;
+                    VonZeit = Sim.GetHour() + 2;
+
+                    if (Sim.Date == 0 && Sim.GetHour() == 9) {
+                        VonZeit = Sim.GetHour() + 2 + PlayerNum / 2;
                     }
 
-                    for (level = 0; level <= 2; level++) {
-                        VonCity = Planes[c].Flugplan.StartCity;
+                    for (d = Planes[c].Flugplan.Flug.AnzEntries() - 1; d >= 0; d--) {
+                        if (Planes[c].Flugplan.Flug[d].ObjectType != 0) {
+                            VonCity = Planes[c].Flugplan.Flug[d].NachCity;
+                            VonZeit = Planes[c].Flugplan.Flug[d].Landezeit + 1;
+                            VonZeit += (Planes[c].Flugplan.Flug[d].Landedate - Sim.Date) * 24;
+                            break;
+                        }
+                    }
+
+                    if (VonZeit < Sim.GetHour() + 2) {
                         VonZeit = Sim.GetHour() + 2;
+                    }
 
-                        if (Sim.Date == 0 && Sim.GetHour() == 9) {
-                            VonZeit = Sim.GetHour() + 2 + PlayerNum / 2;
-                        }
+                    if (VonZeit < 0 || VonZeit >= 23 + 24 + 24) {
+                        continue;
+                    }
+                    if (level == 0 || level == 1) {
+                        for (e = gFrachten.AnzEntries() - 1; e >= 0; e--) {
+                            CFracht &qFracht = gFrachten[e];
 
-                        for (d = Planes[c].Flugplan.Flug.AnzEntries() - 1; d >= 0; d--) {
-                            if (Planes[c].Flugplan.Flug[d].ObjectType != 0) {
-                                VonCity = Planes[c].Flugplan.Flug[d].NachCity;
-                                VonZeit = Planes[c].Flugplan.Flug[d].Landezeit + 1;
-                                VonZeit += (Planes[c].Flugplan.Flug[d].Landedate - Sim.Date) * 24;
-                                break;
+                            if (qFracht.Praemie < 0 || qFracht.VonCity != ULONG(VonCity)) {
+                                continue;
                             }
+                            SLONG Cost = ((CalculateFlightCost(qFracht.VonCity, qFracht.NachCity, 8000, 700, -1)) + 99) / 100 * 100;
+
+                            // Multiplikator, weil wir mehrere Flüge durchführen müssen:
+                            int trips = (qFracht.Tons / (Planes[c].ptPassagiere / 10) + 1);
+                            if (trips >= 4) {
+                                continue;
+                            }
+
+                            Cost = Cost * (2 * trips - 1);
+                            // Cost = Cost*2 * (qFracht.Tons / (PlaneTypes[Planes[c].TypeId].Passagiere/10) + 1);
+                            if ((Cost > qFracht.Praemie * 8 / 10 + Bewertungsbonus) && !(RobotUse(ROBOT_USE_FREE_FRACHT) && qFracht.Praemie == 0)) {
+                                continue;
+                            }
+
+                            if (RobotUse(ROBOT_TRY_TO_RESPECT_RULES)) {
+                                const auto &qPlane = Planes[c];
+                                if (qPlane.ptReichweite * 1000 < Cities.CalcDistance(qFracht.VonCity, qFracht.NachCity)) {
+                                    continue;
+                                }
+                            }
+
+                            SLONG ObjectId = -1;
+                            GameMechanic::takeFreightJob(*this, e, ObjectId);
+
+                            SLONG bailout = 10;
+                            while (Frachten[ObjectId].TonsOpen > 0 && (bailout-- > 0)) {
+                                if (!GameMechanic::planFreightJob(*this, c, ObjectId, Sim.Date + VonZeit / 24, VonZeit % 24)) {
+                                    break;
+                                }
+                                DelayFlightsIfNecessary();
+
+                                Sim.Players.CheckFlighplans();
+                            }
+
+                            break;
                         }
+                    } else if (level == 2) {
+                        SLONG MinMin = 0; // Min muß mindestens so groß sein
 
-                        if (VonZeit < Sim.GetHour() + 2) {
-                            VonZeit = Sim.GetHour() + 2;
-                        }
+                        while (true) {
+                            SLONG Min = 999999999;
+                            SLONG MinE = -1;
 
-                        if (VonZeit >= 0 && VonZeit < 23 + 24 + 24) {
-                            if (level == 0 || level == 1) {
-                                for (e = gFrachten.AnzEntries() - 1; e >= 0; e--) {
-                                    CFracht &qFracht = gFrachten[e];
-
-                                    if (qFracht.Praemie >= 0 && qFracht.VonCity == ULONG(VonCity)) {
-                                        SLONG Cost = ((CalculateFlightCost(qFracht.VonCity, qFracht.NachCity, 8000, 700, -1)) + 99) / 100 * 100;
-
-                                        // Multiplikator, weil wir mehrere Flüge durchführen müssen:
-                                        int trips = (qFracht.Tons / (Planes[c].ptPassagiere / 10) + 1);
-                                        Cost = Cost * 2 * trips;
-                                        // Cost = Cost*2 * (qFracht.Tons / (PlaneTypes[Planes[c].TypeId].Passagiere/10) + 1);
-
-                                        if ((trips < 4) && ((Cost <= qFracht.Praemie * 8 / 10 + Bewertungsbonus) ||
-                                                            (RobotUse(ROBOT_USE_FREE_FRACHT) && qFracht.Praemie == 0))) {
-
-                                            SLONG ObjectId = -1;
-                                            GameMechanic::takeFreightJob(*this, e, ObjectId);
-
-                                            SLONG bailout = 10;
-                                            while (Frachten[ObjectId].TonsOpen > 0 && (bailout-- > 0)) {
-                                                if (!GameMechanic::planFreightJob(*this, c, ObjectId, Sim.Date + VonZeit / 24, VonZeit % 24)) {
-                                                    break;
-                                                }
-                                                DelayFlightsIfNecessary();
-
-                                                Sim.Players.CheckFlighplans();
-                                            }
-
-                                            break;
-                                        }
+                            for (e = gFrachten.AnzEntries() - 1; e >= 0; e--) {
+                                if (gFrachten[e].Praemie >= 0 &&
+                                    VonZeit + Cities.CalcFlugdauer(VonCity, gFrachten[e].VonCity, Planes[c].ptGeschwindigkeit) < 23 + 24) {
+                                    if (Cities.CalcDistance(VonCity, gFrachten[e].VonCity) < Min &&
+                                        Cities.CalcDistance(VonCity, gFrachten[e].VonCity) > MinMin) {
+                                        Min = Cities.CalcDistance(VonCity, gFrachten[e].VonCity);
+                                        MinE = e;
                                     }
                                 }
-                            } else if (level == 2) {
-                                SLONG MinMin = 0; // Min muß mindestens so groß sein
+                            }
 
-                                while (true) {
-                                    SLONG Min = 999999999;
-                                    SLONG MinE = -1;
+                            if (MinE == -1) {
+                                break;
+                            }
+                            MinMin = Min;
 
-                                    for (e = gFrachten.AnzEntries() - 1; e >= 0; e--) {
-                                        if (gFrachten[e].Praemie >= 0 &&
-                                            VonZeit + Cities.CalcFlugdauer(VonCity, gFrachten[e].VonCity, Planes[c].ptGeschwindigkeit) < 23 + 24) {
-                                            if (Cities.CalcDistance(VonCity, gFrachten[e].VonCity) < Min &&
-                                                Cities.CalcDistance(VonCity, gFrachten[e].VonCity) > MinMin) {
-                                                Min = Cities.CalcDistance(VonCity, gFrachten[e].VonCity);
-                                                MinE = e;
-                                            }
-                                        }
+                            if (MinE != -1 && Min < 15000000 && (Min < 6000000 || VonZeit < 34 + 24) && (Min < 3000000 || VonZeit < 24 + 24)) {
+                                e = MinE;
+
+                                CFracht &qFracht = gFrachten[e];
+
+                                SLONG Cost = ((CalculateFlightCost(qFracht.VonCity, qFracht.NachCity, 8000, 700, -1)) + 99) / 100 * 100;
+
+                                // Multiplikator, weil wir mehrere Flüge durchführen müssen:
+                                int trips = (qFracht.Tons / (Planes[c].ptPassagiere / 10) + 1);
+                                if (trips >= 4) {
+                                    continue;
+                                }
+
+                                Cost = Cost * (2 * trips - 1);
+                                // Anflug:
+                                Cost += ((CalculateFlightCost(VonCity, qFracht.VonCity, 8000, 700, -1)) + 99) / 100 * 100;
+                                if ((Cost > qFracht.Praemie + Bewertungsbonus) && !(RobotUse(ROBOT_USE_FREE_FRACHT) && qFracht.Praemie == 0)) {
+                                    continue;
+                                }
+
+                                if (RobotUse(ROBOT_TRY_TO_RESPECT_RULES)) {
+                                    const auto &qPlane = Planes[c];
+                                    if (qPlane.ptReichweite * 1000 < Cities.CalcDistance(qFracht.VonCity, qFracht.NachCity)) {
+                                        continue;
                                     }
+                                }
 
-                                    if (MinE == -1) {
+                                SLONG ObjectId = -1;
+                                GameMechanic::takeFreightJob(*this, e, ObjectId);
+
+                                SLONG bailout = 10;
+                                while (Frachten[ObjectId].TonsOpen > 0 && (bailout-- > 0)) {
+                                    if (!GameMechanic::planFreightJob(*this, c, ObjectId, Sim.Date + VonZeit / 24, VonZeit % 24)) {
                                         break;
                                     }
-                                    MinMin = Min;
+                                    DelayFlightsIfNecessary();
 
-                                    if (MinE != -1 && Min < 15000000 && (Min < 6000000 || VonZeit < 34 + 24) && (Min < 3000000 || VonZeit < 24 + 24)) {
-                                        e = MinE;
-
-                                        CFracht &qFracht = gFrachten[e];
-
-                                        SLONG Cost = ((CalculateFlightCost(qFracht.VonCity, qFracht.NachCity, 8000, 700, -1)) + 99) / 100 * 100;
-
-                                        // Multiplikator, weil wir mehrere Flüge durchführen müssen:
-                                        int trips = (qFracht.Tons / (Planes[c].ptPassagiere / 10) + 1);
-                                        Cost = Cost * trips;
-
-                                        // Anflug:
-                                        Cost += ((CalculateFlightCost(VonCity, qFracht.VonCity, 8000, 700, -1)) + 99) / 100 * 100;
-
-                                        if ((trips < 4) &&
-                                            ((Cost <= qFracht.Praemie + Bewertungsbonus) || (RobotUse(ROBOT_USE_FREE_FRACHT) && qFracht.Praemie == 0))) {
-
-                                            SLONG ObjectId = -1;
-                                            GameMechanic::takeFreightJob(*this, e, ObjectId);
-
-                                            SLONG bailout = 10;
-                                            while (Frachten[ObjectId].TonsOpen > 0 && (bailout-- > 0)) {
-                                                if (!GameMechanic::planFreightJob(*this, c, ObjectId, Sim.Date + VonZeit / 24, VonZeit % 24)) {
-                                                    break;
-                                                }
-                                                DelayFlightsIfNecessary();
-
-                                                Sim.Players.CheckFlighplans();
-                                            }
-                                        }
-                                    }
+                                    Sim.Players.CheckFlighplans();
                                 }
                             }
                         }
@@ -5413,8 +5531,17 @@ void PLAYER::RobotExecuteAction() {
                 break; // Nicht solange eine Route krieselt
             }
 
+            // Höchste Reichweite
+            SLONG maxRange = 0;
+            for (c = 0; c < Planes.AnzEntries(); c++) {
+                if (Planes.IsInAlbum(c) == 0) {
+                    continue;
+                }
+                maxRange = std::max(maxRange, Planes[c].ptReichweite);
+            }
+
             // Neue Route kaufen:
-            if ((DoRoutes != 0) && SLONG(Planes.GetNumUsed()) > (Anz / 2) * 3 / 2 && Anz < SLONG(Routen.GetNumUsed())) {
+            if ((DoRoutes != 0) && (maxRange > 0) && SLONG(Planes.GetNumUsed()) > (Anz / 2) * 3 / 2 && Anz < SLONG(Routen.GetNumUsed())) {
 
                 IsBuyable = GameMechanic::getBuyableRoutes(*this);
 
@@ -5423,29 +5550,37 @@ void PLAYER::RobotExecuteAction() {
 
                 // Beste Route aussuchen:
                 for (c = 0; c < RentRouten.RentRouten.AnzEntries(); c++) {
-                    if (IsBuyable[c] != 0) {
-                        // Ist die Route für die Mission wichtig?
-                        if (RobotUse(ROBOT_USE_ROUTEMISSION)) {
-                            SLONG d = 0;
+                    if (IsBuyable[c] == 0) {
+                        continue;
+                    }
 
-                            for (d = 0; d < 6; d++) {
-                                if ((Routen[c].VonCity == static_cast<ULONG>(Sim.HomeAirportId) &&
-                                     Routen[c].NachCity == static_cast<ULONG>(Sim.MissionCities[d])) ||
-                                    (Routen[c].NachCity == static_cast<ULONG>(Sim.HomeAirportId) &&
-                                     Routen[c].VonCity == static_cast<ULONG>(Sim.MissionCities[d]))) {
-                                    BestC = c;
-                                    if (LocalRandom.Rand(2) == 0) {
-                                        break;
-                                    }
+                    if (RobotUse(ROBOT_TRY_TO_RESPECT_RULES)) {
+                        if (maxRange * 1000 < Cities.CalcDistance(Routen[c].VonCity, Routen[c].NachCity)) {
+                            continue;
+                        }
+                    }
+
+                    // Ist die Route für die Mission wichtig?
+                    if (RobotUse(ROBOT_USE_ROUTEMISSION)) {
+                        SLONG d = 0;
+
+                        for (d = 0; d < 6; d++) {
+                            if ((Routen[c].VonCity == static_cast<ULONG>(Sim.HomeAirportId) &&
+                                 Routen[c].NachCity == static_cast<ULONG>(Sim.MissionCities[d])) ||
+                                (Routen[c].NachCity == static_cast<ULONG>(Sim.HomeAirportId) &&
+                                 Routen[c].VonCity == static_cast<ULONG>(Sim.MissionCities[d]))) {
+                                BestC = c;
+                                if (LocalRandom.Rand(2) == 0) {
+                                    break;
                                 }
                             }
-                            if (d < 6) {
-                                break;
-                            }
-                        } else if (BestC == -1 || RentRouten.RentRouten[c].Miete / Routen[c].AnzPassagiere() < Best) {
-                            Best = RentRouten.RentRouten[c].Miete / Routen[c].AnzPassagiere();
-                            BestC = c;
                         }
+                        if (d < 6) {
+                            break;
+                        }
+                    } else if (BestC == -1 || RentRouten.RentRouten[c].Miete / Routen[c].AnzPassagiere() < Best) {
+                        Best = RentRouten.RentRouten[c].Miete / Routen[c].AnzPassagiere();
+                        BestC = c;
                     }
                 }
 
@@ -8062,6 +8197,12 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "--------X-"
                        "----------";
         break;
+    case ROBOT_TRY_TO_RESPECT_RULES:
+        /* SuperBot: Always respects rules anyway */
+        if (IsSuperBot()) {
+            return false;
+        }
+        return true;
 
     /* specialization of computer players. SuperBot ignores all but the first one. */
     case ROBOT_USE_WORKQUICK_2:

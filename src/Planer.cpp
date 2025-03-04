@@ -2365,8 +2365,9 @@ void CPlaner::HandleLButtonDown() {
                 }
 
 #ifdef _DEBUG
-                if (RouteB == -1)
+                if (RouteB == -1) {
                     DebugBreak();
+                }
 #endif
 
                 for (SLONG c = qPlayer.Planes.AnzEntries() - 1; c >= 0; c--) {

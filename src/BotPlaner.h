@@ -22,6 +22,7 @@ extern int kNumToRemove;
 extern int kTempStart;
 extern int kTempStep;
 extern int kJobSelectRandomization;
+extern bool bDropTakenJobs;
 
 class Graph {
   public:

@@ -952,19 +952,19 @@ void PumpNetwork() {
 
                 switch (Type) {
                 case 1:
-                    LastMinuteAuftraege[Index].Praemie = 0;
+                    LastMinuteAuftraege[Index].Praemie = -1;
                     break;
                 case 2:
-                    ReisebueroAuftraege[Index].Praemie = 0;
+                    ReisebueroAuftraege[Index].Praemie = -1;
                     break;
                 case 3:
                     gFrachten[Index].Praemie = -1;
                     break;
                 case 4:
-                    AuslandsAuftraege[City][Index].Praemie = 0;
+                    AuslandsAuftraege[City][Index].Praemie = -1;
                     break;
                 case 5:
-                    AuslandsFrachten[City][Index].Praemie = 0;
+                    AuslandsFrachten[City][Index].Praemie = -1;
                     break;
                 default:
                     hprintf("AtNet.cpp: Default case should not be reached.");
@@ -1673,8 +1673,7 @@ void PumpNetwork() {
                     Sim.ItemZange = 0;
                     break;
                 default:
-                    hprintf("AtNet.cpp: Default case should not be reached.");
-                    DebugBreak();
+                    break; /* some items do not require network sync */
                 }
             } break;
 

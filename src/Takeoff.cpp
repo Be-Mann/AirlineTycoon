@@ -361,7 +361,8 @@ void CTakeOffApp::CLI(int argc, char *argv[]) {
 
             i++;
             if (i < argc) {
-                gAutoBotDiff = atoi(argv[i]);
+                // gAutoBotDiff = atoi(argv[i]);
+                kSchedulingMinScoreRatio = atoi(argv[i]) * 10 * 1000.0F;
             }
         }
     }
@@ -1769,7 +1770,56 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                                     } else if (Sim.Players.Players[c].Owner == 1) // Und das gleiche für Roboter:
                                     {
                                         for (d = 0; d < 10; d++) {
-                                            if ((qPlayer.Locations[d] & ROOM_ENTERING) != 0) {
+                                            if ((qPlayer.Locations[d] & ROOM_LEAVING) != 0) {
+                                                switch (qPlayer.Locations[d] & (~ROOM_LEAVING)) {
+                                                case ROOM_AUFSICHT:
+                                                    Talkers.Talkers[TALKER_BOSS].DecreaseLocking();
+                                                    break;
+                                                case ROOM_ARAB_AIR:
+                                                    Talkers.Talkers[TALKER_ARAB].DecreaseLocking();
+                                                    break;
+                                                case ROOM_SABOTAGE:
+                                                    Talkers.Talkers[TALKER_SABOTAGE].DecreaseLocking();
+                                                    break;
+                                                case ROOM_BANK:
+                                                    Talkers.Talkers[TALKER_BANKER1].DecreaseLocking();
+                                                    Talkers.Talkers[TALKER_BANKER2].DecreaseLocking();
+                                                    break;
+                                                case ROOM_MUSEUM:
+                                                    Talkers.Talkers[TALKER_MUSEUM].DecreaseLocking();
+                                                    break;
+                                                case ROOM_MAKLER:
+                                                    Talkers.Talkers[TALKER_MAKLER].DecreaseLocking();
+                                                    break;
+                                                case ROOM_WERKSTATT:
+                                                    Talkers.Talkers[TALKER_MECHANIKER].DecreaseLocking();
+                                                    break;
+                                                case ROOM_WERBUNG:
+                                                    Talkers.Talkers[TALKER_WERBUNG].DecreaseLocking();
+                                                    break;
+                                                case ROOM_SECURITY:
+                                                    Talkers.Talkers[TALKER_SECURITY].DecreaseLocking();
+                                                    break;
+                                                default:
+                                                    break;
+                                                }
+
+                                                SLONG RoomLeft = qPlayer.Locations[d] & 255;
+
+                                                if (Sim.RoomBusy[RoomLeft] != 0U) {
+                                                    Sim.RoomBusy[RoomLeft]--;
+                                                }
+
+                                                qPlayer.Locations[d] = 0;
+                                                qPlayer.Locations[d - 1] = UWORD((qPlayer.Locations[d - 1] & (~ROOM_LEAVING)) | ROOM_ENTERING);
+                                                qPlayer.CalcRoom();
+
+                                                if ((Sim.bNetwork != 0) && (Sim.bIsHost != 0)) {
+                                                    qPlayer.BroadcastPosition();
+                                                    qPlayer.BroadcastRooms(ATNET_LEAVEROOM, RoomLeft);
+                                                    Sim.UpdateRoomUsage();
+                                                }
+                                            } else if ((qPlayer.Locations[d] & ROOM_ENTERING) != 0) {
                                                 if (IsRoomBusy(UWORD(qPlayer.Locations[d] & (~ROOM_ENTERING)), c) != 0) {
                                                     // Raum schon besetzt? Erst zweite Priorität ausführen:
                                                     for (e = qPlayer.RobotActions.AnzEntries() - 1; e >= 1; e--) {
@@ -1853,55 +1903,6 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                                                         qPlayer.BroadcastRooms(ATNET_ENTERROOM, qPlayer.Locations[d]);
                                                         Sim.UpdateRoomUsage();
                                                     }
-                                                }
-                                            } else if ((qPlayer.Locations[d] & ROOM_LEAVING) != 0) {
-                                                switch (qPlayer.Locations[d] & (~ROOM_LEAVING)) {
-                                                case ROOM_AUFSICHT:
-                                                    Talkers.Talkers[TALKER_BOSS].DecreaseLocking();
-                                                    break;
-                                                case ROOM_ARAB_AIR:
-                                                    Talkers.Talkers[TALKER_ARAB].DecreaseLocking();
-                                                    break;
-                                                case ROOM_SABOTAGE:
-                                                    Talkers.Talkers[TALKER_SABOTAGE].DecreaseLocking();
-                                                    break;
-                                                case ROOM_BANK:
-                                                    Talkers.Talkers[TALKER_BANKER1].DecreaseLocking();
-                                                    Talkers.Talkers[TALKER_BANKER2].DecreaseLocking();
-                                                    break;
-                                                case ROOM_MUSEUM:
-                                                    Talkers.Talkers[TALKER_MUSEUM].DecreaseLocking();
-                                                    break;
-                                                case ROOM_MAKLER:
-                                                    Talkers.Talkers[TALKER_MAKLER].DecreaseLocking();
-                                                    break;
-                                                case ROOM_WERKSTATT:
-                                                    Talkers.Talkers[TALKER_MECHANIKER].DecreaseLocking();
-                                                    break;
-                                                case ROOM_WERBUNG:
-                                                    Talkers.Talkers[TALKER_WERBUNG].DecreaseLocking();
-                                                    break;
-                                                case ROOM_SECURITY:
-                                                    Talkers.Talkers[TALKER_SECURITY].DecreaseLocking();
-                                                    break;
-                                                default:
-                                                    break;
-                                                }
-
-                                                SLONG RoomLeft = qPlayer.Locations[d] & 255;
-
-                                                if (Sim.RoomBusy[RoomLeft] != 0U) {
-                                                    Sim.RoomBusy[RoomLeft]--;
-                                                }
-
-                                                qPlayer.Locations[d] = 0;
-                                                qPlayer.Locations[d - 1] = UWORD((qPlayer.Locations[d - 1] & (~ROOM_LEAVING)) | ROOM_ENTERING);
-                                                qPlayer.CalcRoom();
-
-                                                if ((Sim.bNetwork != 0) && (Sim.bIsHost != 0)) {
-                                                    qPlayer.BroadcastPosition();
-                                                    qPlayer.BroadcastRooms(ATNET_LEAVEROOM, RoomLeft);
-                                                    Sim.UpdateRoomUsage();
                                                 }
                                             }
                                         }

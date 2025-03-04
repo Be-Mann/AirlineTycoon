@@ -811,7 +811,7 @@ PERSON::PERSON(UBYTE ClanId, XY Position, UBYTE Reason, UBYTE FlightAirline, SLO
 
     case REASON_FLYING:
         // Sicherheitsabfrage, weil durch einen Bug evtl. woanders falsche Werte reinkamen:
-        if (GetFlugplanEintrag()->Gate == -2) {
+        if (GetFlugplanEintrag()->Gate < 0) {
             // Bad, remove Person again soo:
             PERSON::State = PERSON_LEAVING;
             PERSON::Target = Position;
@@ -3078,9 +3078,9 @@ void PERSON::PersonReachedTarget() {
                 Sim.Players.Players[Sim.localPlayer].Messages.AddMessage(BERATERTYP_GIRL, StandardTexte.GetS(TOKEN_TUTORIUM, 1604));
             }
 
-            if (Sim.Players.Players[static_cast<SLONG>(FlightAirline)].Planes[FlightPlaneId].Ort == -3 &&
-                Sim.Players.Players[static_cast<SLONG>(FlightAirline)].Planes[FlightPlaneId].AirportPos.x ==
-                    Sim.Players.Players[static_cast<SLONG>(FlightAirline)].Planes[FlightPlaneId].TargetX) {
+            auto &qPlayer = Sim.Players.Players[static_cast<SLONG>(FlightAirline)];
+            if ((qPlayer.Planes.IsInAlbum(FlightPlaneId) != 0) && qPlayer.Planes[FlightPlaneId].Ort == -3 &&
+                qPlayer.Planes[FlightPlaneId].AirportPos.x == qPlayer.Planes[FlightPlaneId].TargetX) {
                 // Sofort boarden:
                 State = bFirstClass != 0 ? PERSON_BOARDING : PERSON_2DURCHLEUCHTER;
                 if (!fpe || fpe->Gate == -1) {
@@ -3102,16 +3102,17 @@ void PERSON::PersonReachedTarget() {
         } break;
 
             // Am Durchleuchter angekommen, ist das Flugzeug noch da?
-        case PERSON_2DURCHLEUCHTER:
+        case PERSON_2DURCHLEUCHTER: {
             State = PERSON_BOARDING;
             Target = Airport.GetRandomTypedRune(RUNE_WAIT, static_cast<UBYTE>(fpe->Gate), false, &PersonalRand);
 
-            if ((Sim.Players.Players[static_cast<SLONG>(FlightAirline)].SecurityFlags & (1 << 8)) != 0U) {
-                if ((Sim.Players.Players[static_cast<SLONG>(FlightAirline)].SecurityFlags & (1 << 11)) != 0U) {
+            auto &qPlayer = Sim.Players.Players[static_cast<SLONG>(FlightAirline)];
+            if ((qPlayer.SecurityFlags & (1 << 8)) != 0U) {
+                if ((qPlayer.SecurityFlags & (1 << 11)) != 0U) {
                     State |= PERSON_WAITFLAG;
                     WaitCount = 240;
                     Sim.AddSmacker("gate-shw.smk", 768 + fpe->Gate, XY(2, 0));
-                } else if ((Sim.Players.Players[static_cast<SLONG>(FlightAirline)].SecurityFlags & (1 << 10)) != 0U) {
+                } else if ((qPlayer.SecurityFlags & (1 << 10)) != 0U) {
                     State |= PERSON_WAITFLAG;
                     WaitCount = 240;
                     Sim.AddSmacker("gate-hb.smk", 760 + fpe->Gate, XY(1, 0));
@@ -3127,13 +3128,14 @@ void PERSON::PersonReachedTarget() {
 
             //!//State = PERSON_ENTERINGPL;
             //!//Target= Airport.GetRandomTypedRune (RUNE_WAITPLANE, (UBYTE)fpe->Gate, false, &PersonalRand);
-            break;
+        } break;
+        
 
             // Am Schlauch angekommen, ist das Flugzeug noch da?
-        case PERSON_BOARDING:
-            if (Sim.Players.Players[static_cast<SLONG>(FlightAirline)].Planes[FlightPlaneId].Ort == -3 &&
-                Sim.Players.Players[static_cast<SLONG>(FlightAirline)].Planes[FlightPlaneId].AirportPos.x ==
-                    Sim.Players.Players[static_cast<SLONG>(FlightAirline)].Planes[FlightPlaneId].TargetX) {
+        case PERSON_BOARDING: {
+            auto &qPlayer = Sim.Players.Players[static_cast<SLONG>(FlightAirline)];
+            if ((qPlayer.Planes.IsInAlbum(FlightPlaneId) != 0) && qPlayer.Planes[FlightPlaneId].Ort == -3 &&
+                qPlayer.Planes[FlightPlaneId].AirportPos.x == qPlayer.Planes[FlightPlaneId].TargetX) {
                 State = PERSON_ENTERINGPL;
                 if (!fpe || fpe->Gate == -1) {
                     State = PERSON_LEAVING;
@@ -3146,7 +3148,7 @@ void PERSON::PersonReachedTarget() {
                 State = PERSON_2EXIT;
                 Target = Airport.GetRandomExit(&PersonalRand);
             }
-            break;
+        } break;
 
             // Person ist jetzt am Flugzeug und völlig verdeckt
         case PERSON_ENTERINGPL:

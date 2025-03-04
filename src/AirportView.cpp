@@ -19,6 +19,8 @@
 
 #include <SDL_ttf.h>
 
+#define AT_Error(...) Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_ERROR, "SMACK", __VA_ARGS__)
+
 extern CHLPool HLPool;
 
 #ifdef _DEBUG
@@ -1352,7 +1354,7 @@ void AirportView::OnPaint() {
                 }
             }
 
-#ifdef _DEBUG
+#ifdef _DEBUG_EDITOR
             // if (Registration.GetMode()==1)
             {
                 if (Editor == EDITOR_NONE)
@@ -2199,7 +2201,7 @@ void AirportView::OnToggleEditor() { Editor ^= 1; }
 void AirportView::OnChar(UINT nChar, UINT nRepCnt, UINT nFlags) {
     // Sowas darf nur das Hauptfenster, was immer links oben ist:
     if (WinP1.x == 0 && WinP1.y == 0) {
-#ifdef _DEBUG
+#ifdef _DEBUG_EDITOR
         // Builds-Editor: Parametereingabe
         if (Editor == EDITOR_BUILDS) {
             if (nChar >= '0' && nChar <= '9' && UnderCursor != 0xffffffff && Airport.Builds.IsInAlbum(UnderCursor)) {
@@ -2585,6 +2587,7 @@ XY AIRPORT::GetRandomTypedRune(ULONG BrickId, UBYTE Par, bool AcceptError, TEAKR
         if (AcceptError) {
             return (XY(-9999, -9999));
         }
+        AT_Error("No runes found. Called with BrickId=%u, Par=%u, AcceptError=%d.", BrickId, Par, AcceptError);
         TeakLibW_Exception(FNL, ExcNever);
     }
 

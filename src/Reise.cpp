@@ -159,7 +159,7 @@ CReisebuero::~CReisebuero() {
 
     for (c = 0; c < ReisebueroAuftraege.AnzEntries(); c++) {
         if (ReisebueroAuftraege[c].Praemie < 0) {
-            ReisebueroAuftraege[c].Praemie = 0;
+            ReisebueroAuftraege[c].Praemie = -1; /* end animation */
         }
     }
 
@@ -255,10 +255,10 @@ void CReisebuero::OnPaint() {
     }
 
     for (c = 0; c < ReisebueroAuftraege.AnzEntries(); c++) {
-        if (ReisebueroAuftraege[c].Praemie < 0) {
+        if (ReisebueroAuftraege[c].Praemie < -1) {
             ReisebueroAuftraege[c].Praemie += DeltaTime * 3;
-            if (ReisebueroAuftraege[c].Praemie > 0) {
-                ReisebueroAuftraege[c].Praemie = 0;
+            if (ReisebueroAuftraege[c].Praemie > -1) {
+                ReisebueroAuftraege[c].Praemie = -1;
             }
 
             XY Pos;

@@ -428,6 +428,7 @@ void CPlane::DoOneStep(SLONG PlayerNum) {
                         Sim.Players.Players[Sim.localPlayer].Messages.AddMessage(BERATERTYP_GIRL, StandardTexte.GetS(TOKEN_TUTORIUM, 1605));
                     }
 
+                    SLONG Gate = fpe->Gate;
                     if (Startzeit == 255) // Passagiere absetzen?
                     {
                         // hprintf ("Trying to add incomming passengers..");
@@ -449,13 +450,10 @@ void CPlane::DoOneStep(SLONG PlayerNum) {
                         } else {
                             Sim.bReloadAirport = 1;
                         }
-                    } else // nein, abholen
+                    } else if (Gate >= 0) // nein, abholen
                     {
-                        SLONG c = 0;
-                        SLONG Gate = fpe->Gate;
-
                         // Personen brauchen nicht mehr warten, sondern können das Flugzeug stürmen:
-                        for (c = Sim.Persons.AnzEntries() - 1; c >= 0; c--) {
+                        for (SLONG c = Sim.Persons.AnzEntries() - 1; c >= 0; c--) {
                             if ((Sim.Persons.IsInAlbum(c) != 0) &&
                                 ((Sim.Persons[c].State & (~PERSON_WAITFLAG) & (~PERSON_BROWSEFLAG)) == PERSON_WAITING ||
                                  (Sim.Persons[c].State & (~PERSON_WAITFLAG) & (~PERSON_BROWSEFLAG)) == PERSON_SITWAITING) &&

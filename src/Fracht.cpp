@@ -163,8 +163,8 @@ CFrachtRaum::~CFrachtRaum() {
     MapPlaneBms[4].Destroy();
 
     for (SLONG c = 0; c < gFrachten.AnzEntries(); c++) {
-        if (gFrachten[c].Praemie < -1) {
-            gFrachten[c].Praemie = -1;
+        if (gFrachten[c].Praemie < 0) {
+            gFrachten[c].Praemie = -1; /* end animation */
         }
     }
 
@@ -276,7 +276,7 @@ void CFrachtRaum::OnPaint() {
 
                 gFrachten[c].Praemie += DeltaTime;
                 if (gFrachten[c].Praemie > -1) {
-                    gFrachten[c].Praemie = -1;
+                    gFrachten[c].Praemie = -1; /* end animation */
                 }
 
                 if (gFrachten[c].Praemie >= -1) {
