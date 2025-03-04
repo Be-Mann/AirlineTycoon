@@ -310,15 +310,12 @@ void CFlugplanEintrag::CalcPassengers(SLONG PlayerNum, CPlane &qPlane) {
             // if (PlayerNum == 0) AT_Log ("qRoute.Bedarf=%li", qRoute.Bedarf);
 
             // Wie viele wollen mitfliegen?
-#ifdef _DEBUG
-            tmp = qRoute.Bedarf * Gewichte[PlayerNum] / Gesamtgewicht;
-#else
             if (Gesamtgewicht > 0) {
                 tmp = qRoute.Bedarf * Gewichte[PlayerNum] / Gesamtgewicht;
             } else {
                 tmp = 0;
             }
-#endif
+
             // Wie viele können mitfliegen (plus Toleranz)?
             tmp = min(tmp, qPlane.MaxPassagiere + qPlane.MaxPassagiere / 2);
             // if (PlayerNum == 0) AT_Log ("tmp=%li (passagiere+toleranz)", tmp);
@@ -386,20 +383,20 @@ void CFlugplanEintrag::CalcPassengers(SLONG PlayerNum, CPlane &qPlane) {
                 // NetGenericAsync (30003+ObjectId+Sim.Date*100, qRentRoute.Image);
                 // NetGenericAsync (30004+ObjectId+Sim.Date*100, qPlayer.Image);
             }
-            tmp = UWORD(tmp * (400 + ImageTotal) / 1100);
+            tmp = (tmp * (400 + ImageTotal) / 1100);
             // if (PlayerNum == 0) AT_Log ("tmp=%li (nach image)", tmp);
 
             if (qPlane.ptLaerm > 60) {
-                tmp = UWORD(tmp * 1000 / 1100);
+                tmp = (tmp * 1000 / 1100);
             }
             if (qPlane.ptLaerm > 80) {
-                tmp = UWORD(tmp * 1000 / 1100);
+                tmp = (tmp * 1000 / 1100);
             }
             if (qPlane.ptLaerm > 100) {
-                tmp = UWORD(tmp * 1000 / 1100);
+                tmp = (tmp * 1000 / 1100);
             }
             if (qPlane.ptLaerm > 110) {
-                tmp = UWORD(tmp * 1000 / 1100);
+                tmp = (tmp * 1000 / 1100);
             }
             // if (PlayerNum == 0) AT_Log ("tmp=%li (nach lärm)", tmp);
 
@@ -412,6 +409,7 @@ void CFlugplanEintrag::CalcPassengers(SLONG PlayerNum, CPlane &qPlane) {
             // if (PlayerNum == 0) AT_Log ("tmp=%li (begrenzung nach gewicht)", tmp);
 
             tmp = min(tmp, qPlane.MaxPassagiere);
+            tmp = max(tmp, 0);
             // if (PlayerNum == 0) AT_Log ("tmp=%li (begrenzung nach Flugzeugkapazität)\n\n", tmp);
 
             Passagiere = static_cast<UWORD>(tmp);
@@ -491,15 +489,12 @@ void CFlugplanEintrag::CalcPassengers(SLONG PlayerNum, CPlane &qPlane) {
             }
 
             // Wie viele wollen mitfliegen?
-#ifdef _DEBUG
-            tmp = qRoute.Bedarf * Gewichte[PlayerNum] / Gesamtgewicht;
-#else
             if (Gesamtgewicht > 0) {
                 tmp = qRoute.Bedarf * Gewichte[PlayerNum] / Gesamtgewicht;
             } else {
                 tmp = 0;
             }
-#endif
+
             // Wie viele können mitfliegen (plus Toleranz)?
             tmp = min(tmp, qPlane.MaxPassagiereFC + qPlane.MaxPassagiereFC / 2);
 
@@ -558,19 +553,19 @@ void CFlugplanEintrag::CalcPassengers(SLONG PlayerNum, CPlane &qPlane) {
                     ImageTotal = 1000;
                 }
             }
-            tmp = UWORD(tmp * (400 + ImageTotal) / 1100);
+            tmp = (tmp * (400 + ImageTotal) / 1100);
 
             if (qPlane.ptLaerm > 40) {
-                tmp = UWORD(tmp * 1000 / 1100);
+                tmp = (tmp * 1000 / 1100);
             }
             if (qPlane.ptLaerm > 60) {
-                tmp = UWORD(tmp * 1000 / 1100);
+                tmp = (tmp * 1000 / 1100);
             }
             if (qPlane.ptLaerm > 80) {
-                tmp = UWORD(tmp * 1000 / 1100);
+                tmp = (tmp * 1000 / 1100);
             }
             if (qPlane.ptLaerm > 100) {
-                tmp = UWORD(tmp * 1000 / 1100);
+                tmp = (tmp * 1000 / 1100);
             }
 
             // Wie viele können wirklich mitfliegen?
@@ -578,6 +573,7 @@ void CFlugplanEintrag::CalcPassengers(SLONG PlayerNum, CPlane &qPlane) {
                 tmp = min(tmp, qRoute.Bedarf * Gewichte[PlayerNum] / Gesamtgewicht);
             }
             tmp = min(tmp, qPlane.MaxPassagiereFC);
+            tmp = max(tmp, 0);
 
             PassagiereFC = static_cast<UWORD>(tmp);
 

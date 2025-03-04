@@ -43,14 +43,17 @@ void InitPathVars() {
     AT_Log("gLanguage = '%x', settings path prefix: '%s'", gLanguage, prefix.c_str());
 
     // fallback check
-    if (!DoesDirectoryExist(FullFilename(prefix, ""))) {
+    if (!DoesFileExist(FullFilename("voice/aa/100.ogg", prefix))) {
         prefix.clear();
 
-        if (DoesFileExist(FullFilename("aa/100.ogg", "de/voice"))) {
+        if (DoesFileExist(FullFilename("voice/aa/100.ogg", "de"))) {
+            gLanguage = LANGUAGE_D;
             prefix = "de";
-        } else if (DoesFileExist(FullFilename("aa/100.ogg", "en/voice"))) {
+        } else if (DoesFileExist(FullFilename("voice/aa/100.ogg", "en"))) {
+            gLanguage = LANGUAGE_E;
             prefix = "en";
-        } else if (DoesFileExist(FullFilename("aa/100.ogg", "fr/voice"))) {
+        } else if (DoesFileExist(FullFilename("voice/aa/100.ogg", "fr"))) {
+            gLanguage = LANGUAGE_F;
             prefix = "fr";
         }
 

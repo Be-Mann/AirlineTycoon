@@ -126,7 +126,7 @@ CLastMinute::~CLastMinute() {
 
     for (c = 0; c < LastMinuteAuftraege.AnzEntries(); c++) {
         if (LastMinuteAuftraege[c].Praemie < 0) {
-            LastMinuteAuftraege[c].Praemie = 0;
+            LastMinuteAuftraege[c].Praemie = -1; /* end animation */
         }
     }
 
@@ -232,10 +232,10 @@ void CLastMinute::OnPaint() {
     }
 
     for (c = 0; c < LastMinuteAuftraege.AnzEntries(); c++) {
-        if (LastMinuteAuftraege[c].Praemie < 0) {
+        if (LastMinuteAuftraege[c].Praemie < -1) {
             LastMinuteAuftraege[c].Praemie += DeltaTime * 4;
-            if (LastMinuteAuftraege[c].Praemie > 0) {
-                LastMinuteAuftraege[c].Praemie = 0;
+            if (LastMinuteAuftraege[c].Praemie > -1) {
+                LastMinuteAuftraege[c].Praemie = -1; /* end animation */
             }
 
             XY Pos;

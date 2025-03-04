@@ -31,6 +31,7 @@ int kNumToRemove = 1;
 int kTempStart = 1000;
 int kTempStep = 100;
 int kJobSelectRandomization = 1;
+bool bDropTakenJobs = false;
 
 inline int pathLength(const Graph &g, int start) {
     int n = g.nodeState[start].nextNode;
@@ -643,7 +644,7 @@ int BotPlaner::runRemoveWorst(int planeIdx, int numToRemove) {
 
             int jobIdx = g.nodeInfo[currentNode].jobIdx;
             int gain = g.nodeInfo[currentNode].score - g.adjMatrix[prevNode][currentNode].cost;
-            if (!mJobList[jobIdx].wasTaken() && (gain < worstGain)) {
+            if ((bDropTakenJobs || !mJobList[jobIdx].wasTaken()) && (gain < worstGain)) {
                 worstGain = gain;
 
                 if (mJobList[jobIdx].isFreight()) {

@@ -1130,6 +1130,12 @@ void Bot::actionRentRoute() {
                 AT_Log("Bot::RobotInit(): Removing initial route %s", Helper::getRouteName(Routen[routeID]).c_str());
             }
         }
+
+        /* in route mission, do not loose any time! */
+        if (qPlayer.RobotUse(ROBOT_USE_FORCEROUTES)) {
+            mDoRoutes = true;
+            AT_Log("Bot::actionRentRoute(): Switching to routes (forced).");
+        }
         return;
     }
 

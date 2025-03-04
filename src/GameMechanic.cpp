@@ -1922,7 +1922,7 @@ bool GameMechanic::useItem(PLAYER &qPlayer, SLONG item) {
             SLONG cnt = 0;
             for (SLONG c = LastMinuteAuftraege.AnzEntries() - 1; c >= 0; c--) {
                 if (LastMinuteAuftraege[c].Praemie > 0) {
-                    LastMinuteAuftraege[c].Praemie = 0;
+                    LastMinuteAuftraege[c].Praemie = -1;
                     qPlayer.NetUpdateTook(2, c);
                     cnt++;
                 }
@@ -1937,7 +1937,7 @@ bool GameMechanic::useItem(PLAYER &qPlayer, SLONG item) {
             SLONG cnt = 0;
             for (SLONG c = ReisebueroAuftraege.AnzEntries() - 1; c >= 0; c--) {
                 if (ReisebueroAuftraege[c].Praemie > 0) {
-                    ReisebueroAuftraege[c].Praemie = 0;
+                    ReisebueroAuftraege[c].Praemie = -1;
                     qPlayer.NetUpdateTook(1, c);
                     cnt++;
                 }

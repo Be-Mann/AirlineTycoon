@@ -94,7 +94,7 @@ Bot::Prio Bot::condAll(SLONG actionId) {
     case ACTION_CALL_INTERNATIONAL:
         return condCallInternational();
     case ACTION_VISITROUTEBOX2:
-        return condVisitRouteBoxRenting(moneyAvailable);
+        return condVisitRouteBoxRenting();
     case ACTION_EXPANDAIRPORT:
         return condExpandAirport(moneyAvailable);
     case ACTION_CALL_INTER_HANDY:
@@ -796,6 +796,10 @@ Bot::Prio Bot::condVisitMakler() {
     }
 
     Prio prio = Prio::None;
+    if (mDoRoutes && mKnownPlaneTypes.empty()) {
+        /* to unblock findBestRoute() */
+        prio = std::max(prio, Prio::High);
+    }
     if (mLongTermStrategy) {
         if (hoursPassed(ACTION_VISITMAKLER, 24) || (mBestPlaneTypeId == -1)) {
             /* check available plane types at least once per day */
@@ -922,6 +926,9 @@ Bot::Prio Bot::condVisitRouteBoxPlanning() {
     if (mRunToFinalObjective > FinalPhase::No) {
         return Prio::None;
     }
+    if (mKnownPlaneTypes.empty()) {
+        return Prio::None; /* we need to know what planes we can buy */
+    }
 
     Prio prio = Prio::None;
     if ((mWantToRentRouteId == -1) && RoutesNextStep::RentNewRoute == mRoutesNextStep) {
@@ -936,11 +943,8 @@ Bot::Prio Bot::condVisitRouteBoxPlanning() {
     return prio;
 }
 
-Bot::Prio Bot::condVisitRouteBoxRenting(__int64 &moneyAvailable) {
-    moneyAvailable = getMoneyAvailable();
-    if (!hoursPassed(ACTION_VISITROUTEBOX2, 4)) {
-        return Prio::None;
-    }
+Bot::Prio Bot::condVisitRouteBoxRenting() {
+    /* no hoursPassed(): Action frequency is controlled by mRoutesNextStep */
 
     Prio prio = Prio::None;
     if (!mDoRoutes) {
@@ -957,9 +961,6 @@ Bot::Prio Bot::condVisitRouteBoxRenting(__int64 &moneyAvailable) {
         }
         if (HowToPlan::None == howToPlanFlights()) {
             shallRentNewRoute = false;
-        }
-        if (!Helper::checkRoomOpen(ACTION_WERBUNG_ROUTES)) {
-            shallRentNewRoute = false; /* let's wait until we are able to buy ads for the route */
         }
         if (mWantToRentRouteId == -1) {
             shallRentNewRoute = false;

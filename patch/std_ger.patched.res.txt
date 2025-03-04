@@ -518,13 +518,13 @@
   S::Comidas para pasajeros
   D::Mahlzeiten für Passagiere
 >>0010003
-  B::Reforma de aeronave Carga/Passageiros
-  E::Plane rework Cargo/Passengers
-  F::Rénovation d'avion Cargo/Passagers
-  I::Ristrutturazione aereo Carico/Passeggeri
-  N::Vliegtuigrenovatie Vracht/Passagiers
-  O::Reforma de avião Carga/Passageiros
-  S::Reacondicionamiento de avión Carga/Pasajeros
+  B::Reforma de aeronave;;Carga/Passageiros
+  E::Plane rework;;Cargo/Passengers
+  F::Rénovation d'avion;;Cargo/Passagers
+  I::Ristrutturazione aereo;;Carico/Passeggeri
+  N::Vliegtuigrenovatie;;Vracht/Passagiers
+  O::Reforma de avião;;Carga/Passageiros
+  S::Reacondicionamiento de avión;;Carga/Pasajeros
   D::Flugzeugumrüstung;;Fracht/Passagiere
 >>0010004
   B::Empréstimos atuais
@@ -698,13 +698,13 @@
   S::Emisiones de acciones
   D::Aktienemissionen
 >>0010022
-  B::Indenizações por emissões (recebidas)
-  E::Emission indemnifications (received)
-  F::Indemnisations d'émission (reçues)
-  I::Indennizzi per emissioni (ricevuti)
-  N::Emissie vergoedingen (ontvangen)
-  O::Indemnizações de emissão (recebidas)
-  S::Indemnizaciones de emisión (recibidas)
+  B::Indenizações por emissões;;(recebidas)
+  E::Emission indemnifications;;(received)
+  F::Indemnisations d'émission;;(reçues)
+  I::Indennizzi per emissioni;;(ricevuti)
+  N::Emissie vergoedingen;;(ontvangen)
+  O::Indemnizações de emissão;;(recebidas)
+  S::Indemnizaciones de emisión;;(recibidas)
   D::Emissions-Entschädigungen;;(erhalten)
 >>0010023
   B::Compra de ações
@@ -725,13 +725,13 @@
   S::Tarifas de emisión
   D::Emissionsgebühren
 >>0010025
-  B::Indenizações de emissão (pagas)
-  E::Emission indemnifications (paid)
-  F::Indemnités d'émission (payées)
-  I::Indennizzi per emissioni (pagati)
-  N::Emissiecompensaties (betaald)
-  O::Indenizações de emissão (pagas)
-  S::Indemnizaciones por emisión (pagadas)
+  B::Indenizações de emissão;;(pagas)
+  E::Emission indemnifications;;(paid)
+  F::Indemnités d'émission;;(payées)
+  I::Indennizzi per emissioni;;(pagati)
+  N::Emissiecompensaties;;(betaald)
+  O::Indenizações de emissão;;(pagas)
+  S::Indemnizaciones por emisión;;(pagadas)
   D::Emissions-Entschädigungen;;(gezahlt)
 >>0010026
   B::Aviões vendidos
@@ -770,13 +770,13 @@
   S::Equipo de avión
   D::Flugzeugausrüstung
 >>0010030
-  B::Aquisição de filiais
-  E::Buying of branch offices
-  F::Achat de succursales
-  I::Acquisto di sedi secondarie
-  N::Aankoop van filialen
-  O::Aquisição de filiais
-  S::Compra de sucursales
+  B::Aquisição de;;filiais
+  E::Buying of branch;;offices
+  F::Achat de;;succursales
+  I::Acquisto di sedi;;secondarie
+  N::Aankoop van;;filialen
+  O::Aquisição de;;filiais
+  S::Compra de;;sucursales
   D::Kauf von;;Niederlassungen
 >>0010031
   B::Compra de rotas
@@ -806,13 +806,13 @@
   S::Tanques de queroseno
   D::Kerosintanks
 >>0010034
-  B::Escritório filial taxas de aluguel
-  E::Branch office rental fees
-  F::Bureau de succursale frais de location
-  I::Ufficio filiale canone di locazione
-  N::Filialkantoor huurkosten
-  O::Escritório de filial taxas de arrendamento
-  S::Oficina sucursal tarifas de alquiler
+  B::Escritório filial;;taxas de aluguel
+  E::Branch office;;rental fees
+  F::Bureau de succursale;;frais de location
+  I::Ufficio filiale;;canone di locazione
+  N::Filialkantoor;;huurkosten
+  O::Escritório de filial;;taxas de arrendamento
+  S::Oficina sucursal;;tarifas de alquiler
   D::Mieten für;;Niederlassungen
 >>0010035
   B::Taxas de aluguel de rota

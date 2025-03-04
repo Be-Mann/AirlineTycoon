@@ -167,7 +167,7 @@ class Bot {
     Prio condVisitBoss(__int64 &moneyAvailable);
     Prio condExpandAirport(__int64 &moneyAvailable);
     Prio condVisitRouteBoxPlanning();
-    Prio condVisitRouteBoxRenting(__int64 &moneyAvailable);
+    Prio condVisitRouteBoxRenting();
     Prio condVisitSecurity(__int64 &moneyAvailable);
     Prio condSabotageSecurity();
     Prio condVisitDesigner(__int64 &moneyAvailable);
